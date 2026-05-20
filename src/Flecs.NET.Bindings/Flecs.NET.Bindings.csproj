@@ -17,7 +17,13 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
-        <ProjectReference Include="..\Flecs.NET.Native\Flecs.NET.Native.csproj"/>
+
+        <!-- Compile the natives from the local submodule with Zig. -->
+        <ProjectReference Include="..\Flecs.NET.Native\Flecs.NET.Native.csproj" Condition="'$(UseUpstreamNatives)' != 'true'"/>
+
+        <!-- Or consume the prebuilt native binaries from the upstream NuGet packages. -->
+        <PackageReference Include="Flecs.NET.Native.Release" Version="$(UpstreamNativeVersion)" Condition="'$(UseUpstreamNatives)' == 'true' And '$(Configuration)' == 'Release'"/>
+        <PackageReference Include="Flecs.NET.Native.Debug" Version="$(UpstreamNativeVersion)" Condition="'$(UseUpstreamNatives)' == 'true' And '$(Configuration)' != 'Release'"/>
     </ItemGroup>
 
 </Project>
