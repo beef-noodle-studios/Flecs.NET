@@ -154,7 +154,8 @@
     </PropertyGroup>
 
     <!-- Here we need host not target toolset to compile/cross-compile -->
-    <ItemGroup>
+    <!-- Skip pulling the Zig toolset entirely when we aren't compiling natives. -->
+    <ItemGroup Condition="'$(SkipNatives)' != 'true'">
         <PackageReference Include="Vezel.Zig.Toolsets.$(HostRuntime)" Version="0.13.0.1">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>

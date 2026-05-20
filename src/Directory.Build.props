@@ -19,6 +19,19 @@
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
     </PropertyGroup>
 
+    <!--
+        Native library handling: by default this fork consumes the prebuilt native binaries from the
+        upstream Flecs.NET.Native.* NuGet packages instead of compiling flecs from source with Zig.
+
+        Pass -p:UseUpstreamNatives=false to build the natives from the local submodule instead.
+        UpstreamNativeVersion must match FLECS_VERSION in the generated bindings (currently 4.0.4).
+    -->
+    <PropertyGroup>
+        <UseUpstreamNatives Condition="'$(UseUpstreamNatives)' == ''">true</UseUpstreamNatives>
+        <UpstreamNativeVersion Condition="'$(UpstreamNativeVersion)' == ''">4.0.4-build.548</UpstreamNativeVersion>
+        <SkipNatives Condition="'$(SkipNatives)' == '' And '$(UseUpstreamNatives)' == 'true'">true</SkipNatives>
+    </PropertyGroup>
+
     <PropertyGroup>
         <IsPackable>false</IsPackable>
         <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
