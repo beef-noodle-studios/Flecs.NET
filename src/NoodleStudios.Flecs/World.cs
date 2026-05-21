@@ -206,7 +206,8 @@ public unsafe readonly struct World : IDisposable
     ///         </code>
     ///     </para>
     ///     <para>
-    ///         Unlike ecs_is_valid(), this operation will panic if the passed-in entity ID is 0 or has an invalid bit pattern.
+    ///         Unlike <see cref="EntityIsValid(Entity)"/>, this operation will
+    ///         panic if the passed-in entity ID is 0 or has an invalid bit pattern.
     ///     </para>
     /// </remarks>
     /// <param name="entity">
