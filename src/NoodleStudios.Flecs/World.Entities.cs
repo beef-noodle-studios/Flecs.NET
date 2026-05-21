@@ -7,6 +7,8 @@ public unsafe partial struct World
     // TODO: Add World entity API methods here.
     // https://www.flecs.dev/flecs/group__entities.html
 
+    // Create, destroy, validate, copy, etc.
+
     /// <summary>
     ///     Create new entity ID.
     /// </summary>
