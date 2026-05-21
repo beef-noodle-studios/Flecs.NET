@@ -1,6 +1,6 @@
 ﻿namespace NoodleStudios.Flecs;
 
-public class Class1
+public unsafe class World
 {
 
 }
