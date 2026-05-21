@@ -21,4 +21,8 @@ public readonly struct ReadOnlyWorld(World world)
     /// </param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ReadOnlyWorld(World world) => new(world);
+
+    /// <inheritdoc cref="World.ShouldQuit"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool ShouldQuit() => _world.ShouldQuit();
 }
