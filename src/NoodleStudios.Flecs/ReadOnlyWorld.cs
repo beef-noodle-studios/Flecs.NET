@@ -25,4 +25,16 @@ public readonly struct ReadOnlyWorld(World world)
     /// <inheritdoc cref="World.ShouldQuit"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool ShouldQuit() => _world.ShouldQuit();
+
+    /// <inheritdoc cref="World.EntityExists(Entity)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool EntityExists(Entity entity) => _world.EntityExists(entity);
+
+    /// <inheritdoc cref="World.EntityIsAlive(Entity)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool EntityIsAlive(Entity entity) => _world.EntityIsAlive(entity);
+
+    /// <inheritdoc cref="World.EntityIsValid(Entity)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool EntityIsValid(Entity entity) => _world.EntityIsValid(entity);
 }
