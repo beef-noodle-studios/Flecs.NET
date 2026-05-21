@@ -11,7 +11,7 @@
 public readonly struct Entity(EntityId id) : IEquatable<Entity>
 {
     /// <summary>
-    ///     The <see cref="EntityId"/> that uniquely identified this entity.
+    ///     The <see cref="EntityId"/> that uniquely identifies this entity.
     /// </summary>
     public readonly EntityId Id = id;
 
