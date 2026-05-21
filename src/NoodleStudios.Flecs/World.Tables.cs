@@ -4,6 +4,6 @@ namespace NoodleStudios.Flecs;
 
 public unsafe partial struct World
 {
-    // TODO: Add World observer API methods here.
-    // https://www.flecs.dev/flecs/group__observers.html
+    // TODO: Add World table API methods here.
+    // https://www.flecs.dev/flecs/group__tables.html
 }
