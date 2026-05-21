@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11806.211 stable
+VisualStudioVersion = 18.6.11806.211
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flecs.NET.Bindgen", "src\Flecs.NET.Bindgen\Flecs.NET.Bindgen.csproj", "{33F92CFA-5C3E-489C-8FA4-4B5E881091FB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flecs.NET.Bindings", "src\Flecs.NET.Bindings\Flecs.NET.Bindings.csproj", "{A69442C0-A005-4270-B6EB-2970BA58B9F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flecs.NET.Native", "src\Flecs.NET.Native\Flecs.NET.Native.csproj", "{C20BC4CB-D946-44C1-A003-3236781F650A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoodleStudios.Flecs", "src\NoodleStudios.Flecs\NoodleStudios.Flecs.csproj", "{6D350A9C-827A-45C9-8FF6-DE6084A5434E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{C20BC4CB-D946-44C1-A003-3236781F650A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C20BC4CB-D946-44C1-A003-3236781F650A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C20BC4CB-D946-44C1-A003-3236781F650A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
