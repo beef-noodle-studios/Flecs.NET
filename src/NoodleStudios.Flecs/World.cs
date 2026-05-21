@@ -6,7 +6,7 @@ namespace NoodleStudios.Flecs;
 /// <summary>
 ///     A read-write wrapper around a native Flecs world.
 /// </summary>
-public unsafe readonly struct World : IDisposable
+public unsafe readonly partial struct World : IDisposable
 {
     private readonly ecs_world_t* _handle;
 

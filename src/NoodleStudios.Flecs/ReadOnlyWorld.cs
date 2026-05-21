@@ -8,7 +8,7 @@ namespace NoodleStudios.Flecs;
 /// <param name="world">
 ///     A mutable wrapper around a native Flecs world.
 /// </param>
-public readonly struct ReadOnlyWorld(World world)
+public readonly partial struct ReadOnlyWorld(World world)
 {
     private readonly World _world = world;
 
