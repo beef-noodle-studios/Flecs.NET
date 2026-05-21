@@ -7,4 +7,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Flecs.NET.Bindings\Flecs.NET.Bindings.csproj" />
+  </ItemGroup>
+
 </Project>
