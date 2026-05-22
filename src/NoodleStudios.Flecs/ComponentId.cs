@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
@@ -41,7 +40,7 @@ internal static unsafe class ComponentId<T> where T : unmanaged
     public static Id GetId(ecs_world_t* world)
     {
         ComponentRegistry registry = BindingContext.GetRegistry(world);
-        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != 0)
+        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != Id.None)
             return _cachedId;
 
         if (!registry.TryGetId(typeof(T), out var id))
@@ -51,7 +50,7 @@ internal static unsafe class ComponentId<T> where T : unmanaged
         }
 
         _cachedRegistry = registry;
-        _cachedId = new Id(id);
+        _cachedId = id;
         return _cachedId;
     }
 
