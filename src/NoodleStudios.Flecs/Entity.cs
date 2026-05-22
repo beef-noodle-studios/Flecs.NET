@@ -12,20 +12,20 @@ namespace NoodleStudios.Flecs;
 ///         does not belong to is undefined.
 ///     </para>
 ///     <para>
-///         Every entity is also a valid <see cref="Id"/> (it can be added to
+///         Every entity is also a valid <see cref="Flecs.Id"/> (it can be added to
 ///         another entity as a tag), so <see cref="Entity"/> converts implicitly
-///         to <see cref="Id"/>.
+///         to <see cref="Flecs.Id"/>.
 ///     </para>
 /// </remarks>
-/// <param name="value">
-///     The raw 64-bit value of the entity.
+/// <param name="id">
+///     The <see cref="Flecs.Id"/> value of the entity.
 /// </param>
-public readonly struct Entity(ulong value) : IEquatable<Entity>
+public readonly struct Entity(Id id) : IEquatable<Entity>
 {
     /// <summary>
-    ///     The raw 64-bit value of the entity.
+    ///     The <see cref="Flecs.Id"/> value of the entity.
     /// </summary>
-    public readonly ulong Value = value;
+    public readonly Id Id = id;
 
     /// <summary>
     ///     A handle that refers to no entity.
@@ -33,19 +33,19 @@ public readonly struct Entity(ulong value) : IEquatable<Entity>
     public static Entity None => default;
 
     public override bool Equals(object? obj) => obj is Entity other && Equals(other);
-    public bool Equals(Entity other) => Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
+    public bool Equals(Entity other) => Id == other.Id;
+    public override int GetHashCode() => Id.GetHashCode();
 
     /// <summary>
     ///     Get the raw 64-bit value of an entity.
     /// </summary>
-    public static implicit operator ulong(Entity entity) => entity.Value;
+    public static implicit operator ulong(Entity entity) => entity.Id.Value;
 
     /// <summary>
-    ///     View an entity as an <see cref="Id"/> so it can be added to another
+    ///     View an entity as an <see cref="Flecs.Id"/> so it can be added to another
     ///     entity as a tag or used as a relationship or target.
     /// </summary>
-    public static implicit operator Id(Entity entity) => new(entity.Value);
+    public static implicit operator Id(Entity entity) => new(entity.Id);
 
     public static bool operator ==(Entity left, Entity right) => left.Equals(right);
     public static bool operator !=(Entity left, Entity right) => !left.Equals(right);

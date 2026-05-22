@@ -13,15 +13,25 @@ namespace NoodleStudios.Flecs;
 /// </remarks>
 internal sealed class ComponentRegistry
 {
-    private readonly Dictionary<Type, ulong> _ids = new();
+    private readonly Dictionary<Type, Id> _ids = [];
 
     /// <summary>
     ///     Look up the id previously registered for <paramref name="type"/>.
     /// </summary>
-    public bool TryGetId(Type type, out ulong id) => _ids.TryGetValue(type, out id);
+    public bool TryGetId(Type type, out Id id)
+    {
+        if (_ids.TryGetValue(type, out Id value))
+        {
+            id = value;
+            return true;
+        }
+
+        id = Id.None;
+        return false;
+    }
 
     /// <summary>
     ///     Record the id assigned to <paramref name="type"/>.
     /// </summary>
-    public void Store(Type type, ulong id) => _ids[type] = id;
+    public void Store(Type type, Id id) => _ids[type] = id;
 }
