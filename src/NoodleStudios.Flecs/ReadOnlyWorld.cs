@@ -30,11 +30,11 @@ public readonly unsafe partial struct ReadOnlyWorld(World world)
 
     private Id ResolveId<T>() where T : unmanaged
     {
-        if (!ComponentId<T>.TryGetId(_world.Handle, out ulong id))
+        if (!ComponentId<T>.TryGetId(_world.Handle, out var id))
             throw new InvalidOperationException(
                 $"Component '{typeof(T).Name}' is not registered in this world.");
 
-        return new Id(id);
+        return id;
     }
 
     /// <inheritdoc cref="World.ShouldQuit"/>
