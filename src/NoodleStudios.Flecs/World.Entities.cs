@@ -36,7 +36,7 @@ public unsafe partial struct World
     ///     alive, the operation will have no side effects.
     /// </remarks>
     /// <param name="entity">
-    ///     The <see cref="Entity"/> to destroy.
+    ///     The <see cref="FluentApi"/> to destroy.
     /// </param>
     public void DestroyEntity(Entity entity)
     {
@@ -47,7 +47,7 @@ public unsafe partial struct World
     ///     Test whether <paramref name="entity"/> exists.
     /// </summary>
     /// <param name="entity">
-    ///     The <see cref="Entity"/> to test.
+    ///     The <see cref="FluentApi"/> to test.
     /// </param>
     /// <returns>
     ///     True if the entity exists, false if the entity does not exist.
@@ -90,7 +90,7 @@ public unsafe partial struct World
     ///     </para>
     /// </remarks>
     /// <param name="entity">
-    ///     The <see cref="Entity"/> to test.
+    ///     The <see cref="FluentApi"/> to test.
     /// </param>
     /// <returns>
     ///     True if the entity is alive, false otherwise.
@@ -132,7 +132,7 @@ public unsafe partial struct World
     ///     </para>
     /// </remarks>
     /// <param name="entity">
-    ///     The <see cref="Entity"/> to test.
+    ///     The <see cref="FluentApi"/> to test.
     /// </param>
     /// <returns>
     ///     True if the entity is valid, false otherwise.
