@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
@@ -32,19 +31,19 @@ internal static unsafe class ComponentId<T> where T : unmanaged
     // context, so a reference comparison reliably detects a different world while
     // still letting the common single-world case skip the dictionary lookup.
     private static ComponentRegistry? _cachedRegistry;
-    private static ulong _cachedId;
+    private static Id _cachedId;
 
     /// <summary>
     ///     Get the id of <typeparamref name="T"/> in <paramref name="world"/>,
     ///     registering it if necessary.
     /// </summary>
-    public static ulong GetId(ecs_world_t* world)
+    public static Id GetId(ecs_world_t* world)
     {
         ComponentRegistry registry = BindingContext.GetRegistry(world);
-        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != 0)
+        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != Id.None)
             return _cachedId;
 
-        if (!registry.TryGetId(typeof(T), out ulong id))
+        if (!registry.TryGetId(typeof(T), out var id))
         {
             id = Register(world);
             registry.Store(typeof(T), id);
@@ -52,7 +51,7 @@ internal static unsafe class ComponentId<T> where T : unmanaged
 
         _cachedRegistry = registry;
         _cachedId = id;
-        return id;
+        return _cachedId;
     }
 
     /// <summary>
@@ -60,16 +59,16 @@ internal static unsafe class ComponentId<T> where T : unmanaged
     ///     if it has already been registered, without registering it. Used by
     ///     read-only paths that must not mutate the world.
     /// </summary>
-    public static bool TryGetId(ecs_world_t* world, out ulong id)
+    public static bool TryGetId(ecs_world_t* world, out Id id)
     {
         ComponentRegistry? registry = BindingContext.TryGetRegistry(world);
         if (registry == null)
         {
-            id = 0;
+            id = Id.None;
             return false;
         }
 
-        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != 0)
+        if (ReferenceEquals(registry, _cachedRegistry) && _cachedId != Id.None)
         {
             id = _cachedId;
             return true;
@@ -82,11 +81,11 @@ internal static unsafe class ComponentId<T> where T : unmanaged
             return true;
         }
 
-        id = 0;
+        id = Id.None;
         return false;
     }
 
-    private static ulong Register(ecs_world_t* world)
+    private static Id Register(ecs_world_t* world)
     {
         // The symbol (fully-qualified type name) is Flecs's stable dedup key: if
         // an entity with this symbol already exists, ecs_entity_init reuses it and

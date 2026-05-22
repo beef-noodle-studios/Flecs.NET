@@ -44,6 +44,11 @@ public readonly struct Id(ulong value) : IEquatable<Id>
     /// </summary>
     public static implicit operator ulong(Id id) => id.Value;
 
+    /// <summary>
+    ///     Get an id from a raw 64-bit value.
+    /// </summary>
+    public static implicit operator Id(ulong value) => new(value);
+
     public static bool operator ==(Id left, Id right) => left.Equals(right);
     public static bool operator !=(Id left, Id right) => !left.Equals(right);
 }
