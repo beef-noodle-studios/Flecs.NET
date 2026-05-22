@@ -23,8 +23,7 @@ public unsafe partial struct World
     /// </returns>
     public Entity CreateEntity()
     {
-        EntityId entityId = ecs_new(_handle);
-        return new Entity(entityId);
+        return new Entity(ecs_new(_handle));
     }
 
     /// <summary>
@@ -41,7 +40,7 @@ public unsafe partial struct World
     /// </param>
     public void DestroyEntity(Entity entity)
     {
-        ecs_delete(_handle, entity.Id);
+        ecs_delete(_handle, entity);
     }
 
     /// <summary>
@@ -55,7 +54,7 @@ public unsafe partial struct World
     /// </returns>
     public bool EntityExists(Entity entity)
     {
-        return ecs_exists(_handle, entity.Id);
+        return ecs_exists(_handle, entity);
     }
 
     /// <summary>
@@ -99,7 +98,7 @@ public unsafe partial struct World
     /// <seealso cref="EntityIsValid(Entity)"/>
     public bool EntityIsAlive(Entity entity)
     {
-        return ecs_is_alive(_handle, entity.Id);
+        return ecs_is_alive(_handle, entity);
     }
 
     /// <summary>
@@ -141,6 +140,6 @@ public unsafe partial struct World
     /// <seealso cref="EntityIsAlive(Entity)"/>
     public bool EntityIsValid(Entity entity)
     {
-        return ecs_is_valid(_handle, entity.Id);
+        return ecs_is_valid(_handle, entity);
     }
 }

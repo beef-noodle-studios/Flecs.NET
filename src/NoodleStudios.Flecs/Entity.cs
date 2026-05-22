@@ -1,37 +1,51 @@
-﻿namespace NoodleStudios.Flecs;
+namespace NoodleStudios.Flecs;
 
 /// <summary>
-///     Value type that represents an entity in a Flecs world.
-///     This is a thin wrapper around an <see cref="EntityId"/> with support
-///     for implicit conversion.
+///     A handle to an entity in a Flecs world.
 /// </summary>
-/// <param name="id">
-///     The <see cref="EntityId"/> that uniquely identifies this entity.
+/// <remarks>
+///     <para>
+///         An entity is a 64-bit value that uniquely identifies something in a
+///         world. It is an inert handle: it carries no reference to the world it
+///         came from, and all operations on it are performed through the
+///         <see cref="World"/> that created it. Using an entity with a world it
+///         does not belong to is undefined.
+///     </para>
+///     <para>
+///         Every entity is also a valid <see cref="Id"/> (it can be added to
+///         another entity as a tag), so <see cref="Entity"/> converts implicitly
+///         to <see cref="Id"/>.
+///     </para>
+/// </remarks>
+/// <param name="value">
+///     The raw 64-bit value of the entity.
 /// </param>
-public readonly struct Entity(EntityId id) : IEquatable<Entity>
+public readonly struct Entity(ulong value) : IEquatable<Entity>
 {
     /// <summary>
-    ///     The <see cref="EntityId"/> that uniquely identifies this entity.
+    ///     The raw 64-bit value of the entity.
     /// </summary>
-    public readonly EntityId Id = id;
+    public readonly ulong Value = value;
 
     /// <summary>
-    ///     Value representing an invalid entity.
+    ///     A handle that refers to no entity.
     /// </summary>
-    public static Entity None => new(EntityId.Invalid);
+    public static Entity None => default;
 
-    public override bool Equals(object? obj)
-    {
-        if (obj is not Entity other)
-            return false;
+    public override bool Equals(object? obj) => obj is Entity other && Equals(other);
+    public bool Equals(Entity other) => Value == other.Value;
+    public override int GetHashCode() => Value.GetHashCode();
 
-        return Equals(other);
-    }
+    /// <summary>
+    ///     Get the raw 64-bit value of an entity.
+    /// </summary>
+    public static implicit operator ulong(Entity entity) => entity.Value;
 
-    public bool Equals(Entity other) => Id.Equals(other.Id);
-    public override int GetHashCode() => Id.GetHashCode();
-
-    public static implicit operator EntityId(Entity entity) => entity.Id;
+    /// <summary>
+    ///     View an entity as an <see cref="Id"/> so it can be added to another
+    ///     entity as a tag or used as a relationship or target.
+    /// </summary>
+    public static implicit operator Id(Entity entity) => new(entity.Value);
 
     public static bool operator ==(Entity left, Entity right) => left.Equals(right);
     public static bool operator !=(Entity left, Entity right) => !left.Equals(right);
