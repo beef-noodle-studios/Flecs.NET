@@ -20,14 +20,8 @@ internal sealed class ComponentRegistry
     /// </summary>
     public bool TryGetId(Type type, out Id id)
     {
-        if (_ids.TryGetValue(type, out Id value))
-        {
-            id = value;
-            return true;
-        }
-
-        id = Id.None;
-        return false;
+        bool result = _ids.TryGetValue(type, out id);
+        return result;
     }
 
     /// <summary>
