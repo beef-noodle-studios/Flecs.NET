@@ -4,6 +4,11 @@ using System.Runtime.CompilerServices;
 
 namespace NoodleStudios.Flecs;
 
+/// <summary>
+///     Class containing utility API methods to simplify working with pairs in
+///     Flecs. This includes methods for adding, setting, and checking for pairs
+///     on entities and resolving components and tags associated with pairs.
+/// </summary>
 public unsafe static class Pair
 {
     public readonly ref struct WithRelationId(Id relation)
