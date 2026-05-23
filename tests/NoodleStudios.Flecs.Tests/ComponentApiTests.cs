@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace NoodleStudios.Flecs.Tests;
+﻿namespace NoodleStudios.Flecs.Tests;
 
 public class ComponentApiTests
 {
@@ -21,11 +17,13 @@ public class ComponentApiTests
     }
 
     [Test]
+    // It's important for the functionality of ReadOnlyWorld that Has<T> does
+    // not mutate the world by registering the component type T.
     public void Has_does_not_register_component()
     {
         var alice = _world.CreateEntity();
         Assert.That(_world.Has<UnregisteredTag>(alice), Is.False);
-        Assert.That(_world.TryGetId<UnregisteredTag>(out var id), Is.False);
+        Assert.That(_world.TryGetId<UnregisteredTag>(out _), Is.False);
     }
 
     struct UnregisteredTag;

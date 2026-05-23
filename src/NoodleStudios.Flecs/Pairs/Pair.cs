@@ -2,7 +2,7 @@
 using NoodleStudios.Flecs.Core;
 using System.Runtime.CompilerServices;
 
-namespace NoodleStudios.Flecs.Pairs;
+namespace NoodleStudios.Flecs;
 
 public unsafe static class Pair
 {

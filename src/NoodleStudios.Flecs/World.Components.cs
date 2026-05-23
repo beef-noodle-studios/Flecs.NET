@@ -23,6 +23,14 @@ public unsafe partial struct World
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(Entity entity, Id id) => ecs_add_id(_handle, entity, id);
 
+    /// <inheritdoc cref="Add(Entity, Id)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add(Entity entity, Entity id) => ecs_add_id(_handle, entity, id);
+
+    /// <inheritdoc cref="Add(Entity, Id)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void Add(Entity entity, ulong rawId) => ecs_add_id(_handle, entity, rawId);
+
     /// <summary>
     ///     Remove an id from an entity. Removing an id the entity does not have is
     ///     a no-op.
@@ -164,8 +172,13 @@ public unsafe partial struct World
 
     /// <inheritdoc cref="Has(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Has<T>(Entity entity) where T : unmanaged =>
-        ecs_has_id(_handle, entity, ComponentId<T>.GetId(_handle));
+    public bool Has<T>(Entity entity) where T : unmanaged
+    {
+        if (!ComponentId<T>.TryGetId(_handle, out var id))
+            return false;
+
+        return ecs_has_id(_handle, entity, id);
+    }
 
     /// <summary>
     ///     Set the value of component <typeparamref name="T"/> on an entity, adding
