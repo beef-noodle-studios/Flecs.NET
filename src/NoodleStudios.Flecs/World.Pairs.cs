@@ -22,11 +22,67 @@ public unsafe partial struct World
     public Id IsA => new(EcsIsA);
 
     /// <summary>
+    ///     Add a basic tag pair to <paramref name="entity"/>, comprised of
+    ///     <paramref name="relationship"/> and <paramref name="target"/>.
+    /// </summary>
+    /// <remarks>
+    ///     This method creates a basic tag pair, which is a combination of a
+    ///     relationship and a target entity. Note that this method does not
+    ///     support component pairs (pairs with data).
+    /// </remarks>
+    /// <param name="entity">
+    ///     The <see cref="Entity"/> to which the pair will be added.
+    /// </param>
+    /// <param name="relationship">
+    ///     The relationship tag of the pair.
+    /// </param>
+    /// <param name="target">
+    ///     The target tag of the pair.
+    /// </param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void AddPair(Entity entity, Id relationship, Id target)
+    {
+        var pairId = ecs_make_pair(relationship, target);
+        ecs_add_id(_handle, entity, pairId);
+    }
+
+    /// <summary>
+    ///     Add a basic tag pair to <paramref name="entity"/>, comprised of
+    ///     <typeparamref name="TRelation"/> and <typeparamref name="TTarget"/>.
+    /// </summary>
+    /// <remarks>
+    ///     This method creates a basic tag pair, which is a combination of a
+    ///     relationship and a target entity. Note that this method does not
+    ///     support component pairs (pairs with data).
+    /// </remarks>
+    /// <typeparam name="TRelation">
+    ///     The relationship tag type of the pair.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The target tag type of the pair.
+    /// </typeparam>
+    /// <param name="entity">
+    ///     The <see cref="Entity"/> to which the pair will be added.
+    /// </param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void AddPair<TRelation, TTarget>(Entity entity)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(_handle);
+        var targetId = ComponentId<TTarget>.GetId(_handle);
+        AddPair(entity, relationId, targetId);
+    }
+
+    /// <summary>
     ///     Make <paramref name="child"/> a child of <paramref name="parent"/> by
     ///     adding the <see cref="ChildOf"/> pair.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AddChildOf(Entity child, Entity parent) => Pair.Add(this, child, Pair.Relation(ChildOf).Target(parent));
+    public void AddChildOf(Entity child, Entity parent)
+    {
+        AddPair(child, ChildOf, parent);
+    }
 
     /// <summary>
     ///     Get the parent (the <see cref="ChildOf"/> target) of an entity.
