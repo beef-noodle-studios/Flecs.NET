@@ -103,14 +103,6 @@ public readonly unsafe partial struct ReadOnlyWorld(World world)
     public bool TryGet<T>(Entity entity, out T value) where T : unmanaged =>
         _world.TryGet(entity, ResolveId<T>(), out value);
 
-    /// <inheritdoc cref="World.HasPair(Entity, Id, Id)"/>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool HasPair(Entity entity, Id relationship, Id target) => _world.HasPair(entity, relationship, target);
-
-    /// <inheritdoc cref="World.Pair(Id, Id)"/>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Id Pair(Id relationship, Id target) => _world.Pair(relationship, target);
-
     /// <inheritdoc cref="World.GetParent(Entity)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity GetParent(Entity entity) => _world.GetParent(entity);
