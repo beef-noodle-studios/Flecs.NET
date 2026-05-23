@@ -1,4 +1,3 @@
-using NoodleStudios.Flecs.Pairs;
 using System.Runtime.CompilerServices;
 using static Flecs.NET.Bindings.flecs;
 
