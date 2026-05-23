@@ -246,6 +246,11 @@ public unsafe static class Pair
         return new WithRelationId(relation);
     }
 
+    public static WithRelationId Relation(Entity relation)
+    {
+        return new WithRelationId(relation);
+    }
+
     public static WithRelationType<TRelation> Relation<TRelation>()
         where TRelation : unmanaged
     {
