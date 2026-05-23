@@ -32,25 +32,9 @@ public readonly unsafe partial struct ReadOnlyWorld(World world)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ReadOnlyWorld(World world) => new(world);
 
-    /// <summary>
-    ///     Try to get the id of a component type, returning false if the
-    ///     component is not registered in this world.
-    /// </summary>
-    /// <typeparam name="T">
-    ///     The component type whose id to get. Must be unmanaged.
-    /// </typeparam>
-    /// <param name="id">
-    ///     The output parameter to receive the component id, if it's registered.
-    /// </param>
-    /// <returns>
-    ///     True if the component is registered in this world.
-    /// </returns>
+    /// <inheritdoc cref="World.TryGetId{T}(out Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetId<T>(out Id id) where T : unmanaged
-    {
-        bool result = ComponentId<T>.TryGetId(_world.Handle, out id);
-        return result;
-    }
+    public bool TryGetId<T>(out Id id) where T : unmanaged => _world.TryGetId<T>(out id);
 
     private Id ResolveId<T>() where T : unmanaged
     {
@@ -93,6 +77,17 @@ public readonly unsafe partial struct ReadOnlyWorld(World world)
     /// <inheritdoc cref="World.Has{T}(Entity)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>(Entity entity) where T : unmanaged => _world.Has(entity, ResolveId<T>());
+
+    /// <inheritdoc cref="World.HasPair(Entity, Id, Id)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool HasPair(Entity entity, Id relationship, Id target) =>
+        _world.HasPair(entity, relationship, target);
+
+    /// <inheritdoc cref="World.HasPair{TRelation, TTarget}(Entity)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool HasPair<TRelation, TTarget>(Entity entity)
+        where TRelation : unmanaged
+        where TTarget : unmanaged => _world.HasPair<TRelation, TTarget>(entity);
 
     /// <inheritdoc cref="World.Get{T}(Entity)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

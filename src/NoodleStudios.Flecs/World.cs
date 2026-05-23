@@ -72,4 +72,24 @@ public unsafe readonly partial struct World : IDisposable
             Console.WriteLine("Failed to finalize Flecs world. Error code: " + result);
         }
     }
+
+    /// <summary>
+    ///     Try to get the id of a component type, returning false if the
+    ///     component is not registered in this world.
+    /// </summary>
+    /// <typeparam name="T">
+    ///     The component type whose id to get. Must be unmanaged.
+    /// </typeparam>
+    /// <param name="id">
+    ///     The output parameter to receive the component id, if it's registered.
+    /// </param>
+    /// <returns>
+    ///     True if the component is registered in this world.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetId<T>(out Id id) where T : unmanaged
+    {
+        bool result = ComponentId<T>.TryGetId(_handle, out id);
+        return result;
+    }
 }

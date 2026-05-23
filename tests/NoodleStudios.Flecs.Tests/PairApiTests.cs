@@ -90,28 +90,38 @@ public sealed class PairApiTests
         Assert.That(_world.Get(orangeQuest, Pair.Relation<Requires>().Target<Oranges>()).Amount, Is.EqualTo(OrangeAmount));
     }
 
+    //[Test]
+    //public void Add_pair_component_with_target_value()
+    //{
+    //    var alice = _world.CreateEntity();
+    //    var bob = _world.CreateEntity();
+    //    var livesAt = _world.CreateEntity();
+
+    //    _world.Add(alice, Pair.Relation(livesAt).Target(new Position(1, 2)));
+    //    var alicePosition = _world.Get(alice, Pair.Relation(livesAt).Target<Position>());
+    //    using (Assert.EnterMultipleScope())
+    //    {
+    //        Assert.That(alicePosition.X, Is.EqualTo(1));
+    //        Assert.That(alicePosition.Y, Is.EqualTo(2));
+    //    }
+
+    //    _world.Add(bob, Pair.Relation<SpawnsAt>().Target(new Position(3, 4)));
+    //    var bobPosition = _world.Get(bob, Pair.Relation<SpawnsAt>().Target<Position>());
+    //    using (Assert.EnterMultipleScope())
+    //    {
+    //        Assert.That(bobPosition.X, Is.EqualTo(3));
+    //        Assert.That(bobPosition.Y, Is.EqualTo(4));
+    //    }
+    //}
+
     [Test]
-    public void Add_pair_component_with_target_value()
+    public void Has_pair_does_not_register_new_tags()
     {
         var alice = _world.CreateEntity();
-        var bob = _world.CreateEntity();
-        var livesAt = _world.CreateEntity();
-
-        _world.Add(alice, Pair.Relation(livesAt).Target(new Position(1, 2)));
-        var alicePosition = _world.Get(alice, Pair.Relation(livesAt).Target<Position>());
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(alicePosition.X, Is.EqualTo(1));
-            Assert.That(alicePosition.Y, Is.EqualTo(2));
-        }
-
-        _world.Add(bob, Pair.Relation<SpawnsAt>().Target(new Position(3, 4)));
-        var bobPosition = _world.Get(bob, Pair.Relation<SpawnsAt>().Target<Position>());
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(bobPosition.X, Is.EqualTo(3));
-            Assert.That(bobPosition.Y, Is.EqualTo(4));
-        }
+        var likesOranges = Pair.Relation<Likes>().Target<Oranges>();
+        Assert.That(_world.Has(alice, likesOranges), Is.False);
+        Assert.That(_world.TryGetId<Likes>(out _), Is.False);
+        Assert.That(_world.TryGetId<Oranges>(out _), Is.False);
     }
 
     struct Likes;

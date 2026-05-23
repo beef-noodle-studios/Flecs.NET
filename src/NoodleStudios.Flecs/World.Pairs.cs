@@ -75,6 +75,59 @@ public unsafe partial struct World
     }
 
     /// <summary>
+    ///     Evaluate whether <paramref name="entity"/> has the pair comprised
+    ///     of <paramref name="relationship"/> and <paramref name="target"/>.
+    /// </summary>
+    /// <param name="entity">
+    ///     The <see cref="Entity"/> to check for the presence of the pair.
+    /// </param>
+    /// <param name="relationship">
+    ///     The relationship tag of the pair to check for.
+    /// </param>
+    /// <param name="target">
+    ///     The target tag of the pair to check for.
+    /// </param>
+    /// <returns>
+    ///     True if the entity has the specified pair, false otherwise.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool HasPair(Entity entity, Id relationship, Id target)
+    {
+        var pairId = ecs_make_pair(relationship, target);
+        return ecs_has_id(_handle, entity, pairId);
+    }
+
+    /// <summary>
+    ///     Evaluate whether <paramref name="entity"/> has the pair comprised
+    ///     <typeparamref name="TRelation"/> and <typeparamref name="TTarget"/>.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The relationship tag type of the pair.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The target tag type of the pair.
+    /// </typeparam>
+    /// <param name="entity">
+    ///     The <see cref="Entity"/> to check for the presence of the pair.
+    /// </param>
+    /// <returns>
+    ///     True if the entity has the specified pair, false otherwise.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool HasPair<TRelation, TTarget>(Entity entity)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        if (!ComponentId<TRelation>.TryGetId(_handle, out var relationId))
+            return false;
+
+        if (!ComponentId<TTarget>.TryGetId(_handle, out var targetId))
+            return false;
+
+        return HasPair(entity, relationId, targetId);
+    }
+
+    /// <summary>
     ///     Make <paramref name="child"/> a child of <paramref name="parent"/> by
     ///     adding the <see cref="ChildOf"/> pair.
     /// </summary>
