@@ -15,6 +15,11 @@ public unsafe static class Pair
             return new TagResolver(_relation, target);
         }
 
+        public TagResolver Target(Entity target)
+        {
+            return new TagResolver(_relation, target);
+        }
+
         public ComponentResolverWithTargetType<TTarget> Target<TTarget>()
             where TTarget : unmanaged
         {
@@ -31,15 +36,20 @@ public unsafe static class Pair
     public readonly ref struct WithRelationType<TRelation>
         where TRelation : unmanaged
     {
+        public ComponentResolverWithRelationType<TRelation> Target(Id target)
+        {
+            return new ComponentResolverWithRelationType<TRelation>(target);
+        }
+
+        public ComponentResolverWithRelationType<TRelation> Target(Entity target)
+        {
+            return new ComponentResolverWithRelationType<TRelation>(target);
+        }
+
         public ComponentWithTargetValue<TRelation, TTarget> Target<TTarget>(TTarget targetValue)
             where TTarget : unmanaged
         {
             return new ComponentWithTargetValue<TRelation, TTarget>(targetValue);
-        }
-
-        public ComponentResolverWithRelationType<TRelation> Target(Id target)
-        {
-            return new ComponentResolverWithRelationType<TRelation>(target);
         }
 
         public ComponentResolver<TRelation, TTarget> Target<TTarget>()
@@ -92,6 +102,11 @@ public unsafe static class Pair
         return result;
     }
 
+    public static bool Has(this World world, Entity entity, TagResolver resolver)
+    {
+        return world.AsReadOnly().Has(entity, resolver);
+    }
+
     public readonly ref struct TagResolver<TRelation, TTarget>()
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -136,10 +151,53 @@ public unsafe static class Pair
         return result;
     }
 
+    public static bool Has<TRelation, TTarget>(this World world, Entity entity, TagResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        return world.AsReadOnly().Has(entity, resolver);
+    }
+
     public readonly ref struct ComponentResolverWithRelationType<TRelation>(Id target)
         where TRelation : unmanaged
     {
         public readonly Id Target = target;
+    }
+
+    public static void Add<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = resolver.Target;
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Add(entity, pairId);
+    }
+
+    public static void Set<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = resolver.Target;
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId);
+    }
+
+    public static bool Has<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        if (!world.TryGetId<TRelation>(out var relationId))
+            return false;
+
+        var targetId = resolver.Target;
+        var pairId = Ecs.MakePair(relationId, targetId);
+        bool result = world.Has(entity, pairId);
+        return result;
+    }
+
+    public static bool Has<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        return world.AsReadOnly().Has(entity, resolver);
     }
 
     public static ref readonly TRelation Get<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
@@ -153,16 +211,122 @@ public unsafe static class Pair
         return ref world.Get<TRelation>(entity, pairId);
     }
 
+    public static ref readonly TRelation Get<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        return ref world.AsReadOnly().Get(entity, resolver);
+    }
+
     public readonly ref struct ComponentResolverWithTargetType<TTarget>(Id relation)
         where TTarget : unmanaged
     {
         public readonly Id Relation = relation;
     }
 
+    public static void Add<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        var relationId = resolver.Relation;
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Add(entity, pairId);
+    }
+
+    public static void Set<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        var relationId = resolver.Relation;
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId);
+    }
+
+    public static bool Has<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        if (!world.TryGetId<TTarget>(out var targetId))
+            return false;
+
+        var relationId = resolver.Relation;
+        var pairId = Ecs.MakePair(relationId, targetId);
+        bool result = world.Has(entity, pairId);
+        return result;
+    }
+
+    public static bool Has<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        return world.AsReadOnly().Has(entity, resolver);
+    }
+
+    public static ref readonly TTarget Get<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        var relationId = resolver.Relation;
+
+        if (!world.TryGetId<TTarget>(out var targetId))
+            targetId = Id.None;
+
+        var pairId = Ecs.MakePair(relationId, targetId);
+        return ref world.Get<TTarget>(entity, pairId);
+    }
+
+    public static ref readonly TTarget Get<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        return ref world.AsReadOnly().Get(entity, resolver);
+    }
+
     public readonly ref struct ComponentResolver<TRelation, TTarget>
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
+    }
+
+    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Add(entity, pairId);
+    }
+
+    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId);
+    }
+
+    public static bool Has<TRelation, TTarget>(
+        this ReadOnlyWorld world,
+        Entity entity,
+        ComponentResolver<TRelation, TTarget> resolver = default
+        )
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        if (!world.TryGetId<TRelation>(out var relationId))
+            return false;
+
+        if (!world.TryGetId<TTarget>(out var targetId))
+            return false;
+
+        var pairId = ecs_make_pair(relationId, targetId);
+        bool result = world.Has(entity, pairId);
+        return result;
+    }
+
+    public static bool Has<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        return world.AsReadOnly().Has(entity, resolver);
     }
 
     public static TRelation Get<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
@@ -227,6 +391,30 @@ public unsafe static class Pair
         public readonly TRelation Relation = relation;
     }
 
+    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+
+        if (world.Has(entity, pairId))
+            return;
+
+        world.Set(entity, pairId, pair.Relation);
+    }
+
+    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId, pair.Relation);
+    }
+
     public readonly ref struct ComponentWithTargetValue<TTarget>(Id relation, TTarget target)
         where TTarget : unmanaged
     {
@@ -234,11 +422,57 @@ public unsafe static class Pair
         public readonly TTarget Target = target;
     }
 
-    public readonly ref struct ComponentWithTargetValue<TRelation, TTarget>(TTarget TargetValue)
+    public static void Add<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
+        where TTarget : unmanaged
+    {
+        var relationId = pair.Relation;
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+
+        if (world.Has(entity, pairId))
+            return;
+
+        world.Set(entity, pairId, pair.Target);
+    }
+
+    public static void Set<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
+        where TTarget : unmanaged
+    {
+        var relationId = pair.Relation;
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId, pair.Target);
+    }
+
+    public readonly ref struct ComponentWithTargetValue<TRelation, TTarget>(TTarget target)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
-        public readonly TTarget TargetValue = TargetValue;
+        public readonly TTarget Target = target;
+    }
+
+    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+
+        if (world.Has(entity, pairId))
+            return;
+
+        world.Set(entity, pairId, pair.Target);
+    }
+
+    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = ecs_make_pair(relationId, targetId);
+        world.Set(entity, pairId, pair.Target);
     }
 
     public static WithRelationId Relation(Id relation)

@@ -26,7 +26,7 @@ public unsafe partial struct World
     ///     adding the <see cref="ChildOf"/> pair.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void AddChildOf(Entity child, Entity parent) => Add(child, Pair.Relation(ChildOf).Target(parent));
+    public void AddChildOf(Entity child, Entity parent) => Pair.Add(this, child, Pair.Relation(ChildOf).Target(parent));
 
     /// <summary>
     ///     Get the parent (the <see cref="ChildOf"/> target) of an entity.

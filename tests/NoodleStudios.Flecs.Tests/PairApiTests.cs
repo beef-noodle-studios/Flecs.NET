@@ -31,6 +31,23 @@ public sealed class PairApiTests
     }
 
     [Test]
+    public void Add_pair_tag_by_shorthand()
+    {
+        var alice = _world.CreateEntity();
+        var bob = _world.CreateEntity();
+        var likes = _world.CreateEntity();
+        var apples = _world.CreateEntity();
+        var likesApples = Pair.Tag(likes, apples);
+        var likesOranges = Pair.Tag<Likes, Oranges>();
+
+        _world.Add(alice, likesApples);
+        Assert.That(_world.Has(alice, likesApples), Is.True);
+
+        _world.Add(bob, likesOranges);
+        Assert.That(_world.Has(bob, likesOranges), Is.True);
+    }
+
+    [Test]
     public void Add_pair_tag_by_generic()
     {
         var alice = _world.CreateEntity();
@@ -82,13 +99,19 @@ public sealed class PairApiTests
 
         _world.Add(alice, Pair.Relation(livesAt).Target(new Position(1, 2)));
         var alicePosition = _world.Get(alice, Pair.Relation(livesAt).Target<Position>());
-        Assert.That(alicePosition.X, Is.EqualTo(1));
-        Assert.That(alicePosition.Y, Is.EqualTo(2));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(alicePosition.X, Is.EqualTo(1));
+            Assert.That(alicePosition.Y, Is.EqualTo(2));
+        }
 
         _world.Add(bob, Pair.Relation<SpawnsAt>().Target(new Position(3, 4)));
         var bobPosition = _world.Get(bob, Pair.Relation<SpawnsAt>().Target<Position>());
-        Assert.That(bobPosition.X, Is.EqualTo(3));
-        Assert.That(bobPosition.Y, Is.EqualTo(4));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bobPosition.X, Is.EqualTo(3));
+            Assert.That(bobPosition.Y, Is.EqualTo(4));
+        }
     }
 
     struct Likes;
