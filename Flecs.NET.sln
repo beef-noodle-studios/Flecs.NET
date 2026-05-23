@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flecs.NET.Native", "src\Fle
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoodleStudios.Flecs", "src\NoodleStudios.Flecs\NoodleStudios.Flecs.csproj", "{6D350A9C-827A-45C9-8FF6-DE6084A5434E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NoodleStudios.Flecs.Tests", "tests\NoodleStudios.Flecs.Tests\NoodleStudios.Flecs.Tests.csproj", "{14233E71-B751-47A1-B9FD-E5673B9678B4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6D350A9C-827A-45C9-8FF6-DE6084A5434E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14233E71-B751-47A1-B9FD-E5673B9678B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14233E71-B751-47A1-B9FD-E5673B9678B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14233E71-B751-47A1-B9FD-E5673B9678B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14233E71-B751-47A1-B9FD-E5673B9678B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

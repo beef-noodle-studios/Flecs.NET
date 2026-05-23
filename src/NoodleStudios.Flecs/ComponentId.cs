@@ -1,3 +1,4 @@
+using System.Reflection;
 using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
@@ -33,6 +34,9 @@ internal static unsafe class ComponentId<T> where T : unmanaged
     private static ComponentRegistry? _cachedRegistry;
     private static Id _cachedId;
 
+    private static readonly ComponentTraitAttribute[] Traits =
+        typeof(T).GetCustomAttributes<ComponentTraitAttribute>(inherit: false).ToArray();
+
     /// <summary>
     ///     Get the id of <typeparamref name="T"/> in <paramref name="world"/>,
     ///     registering it if necessary.
@@ -44,10 +48,7 @@ internal static unsafe class ComponentId<T> where T : unmanaged
             return _cachedId;
 
         if (!registry.TryGetId(typeof(T), out var id))
-        {
-            id = Register(world);
-            registry.Store(typeof(T), id);
-        }
+            id = Register(world, registry);
 
         _cachedRegistry = registry;
         _cachedId = id;
@@ -85,7 +86,7 @@ internal static unsafe class ComponentId<T> where T : unmanaged
         return false;
     }
 
-    private static Id Register(ecs_world_t* world)
+    private static Id Register(ecs_world_t* world, ComponentRegistry registry)
     {
         // The symbol (fully-qualified type name) is Flecs's stable dedup key: if
         // an entity with this symbol already exists, ecs_entity_init reuses it and
@@ -105,7 +106,13 @@ internal static unsafe class ComponentId<T> where T : unmanaged
             componentDesc.entity = entity;
             componentDesc.type.size = sizeof(T);
             componentDesc.type.alignment = AlignOf();
-            return ecs_component_init(world, &componentDesc);
+            Id id = ecs_component_init(world, &componentDesc);
+
+            // Record the finalized id before applying traits to avoid endless recursion.
+            registry.Store(typeof(T), id);
+
+            ComponentTraits.Apply(World.FromNativeWorldHandle(world), new Entity(id), Traits);
+            return id;
         }
         finally
         {
