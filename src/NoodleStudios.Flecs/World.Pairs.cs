@@ -23,7 +23,7 @@ public unsafe partial struct World
     ///     to a value, but it is not a valid standalone entity.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Id Pair(Id relationship, Id target) => ecs_make_pair(relationship, target);
+    public Id Paird(Id relationship, Id target) => ecs_make_pair(relationship, target);
 
     /// <summary>
     ///     Add a (relationship, target) pair to an entity.

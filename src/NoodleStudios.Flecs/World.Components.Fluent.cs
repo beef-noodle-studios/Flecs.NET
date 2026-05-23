@@ -1,5 +1,6 @@
 ﻿using NoodleStudios.Flecs.Core;
 using NoodleStudios.Flecs.Facades;
+using NoodleStudios.Flecs.Pairs;
 using System.Runtime.CompilerServices;
 
 namespace NoodleStudios.Flecs;
@@ -60,34 +61,19 @@ public unsafe partial struct World
         Likes,
     }
 
-    private void Foo(World world)
-    {
-        var likes = world.CreateEntity();
-        var apples = world.CreateEntity();
-        var robot = world.CreateEntity();
-        var mechanical = world.CreateEntity();
-
-        var bob = world.CreateEntity();
-
-        FluentApi.Wrap(world, bob)
-            .AddTag<Biological>()
-            .AddRelationship(likes, apples)
-            .AddRelationship(IsA, robot);
-    }
-
     private void AddTest(World world)
     {
         // Pair Tag (Ids)
-        world.Add(Bob, Pair.Get(Likes, Apples));
+        world.Add(Bob, Pair.Tag(Likes, Apples));
 
         // Pair Tag (Relation Generic)
-        world.Add(Bob, Pair.Relation<Eats>.Target(Apples));
+        world.Add(Bob, Pair.Relation<Eats>().Target(Apples));
 
         // Pair Tag (Target Generic)
         world.Add(Bob, Pair.Relation(Likes).Target<Pears>());
 
         // Pair Tag (Relation generic + Target generic)
-        world.Add(Bob, Pair.Get<Eats, Pears>());
+        world.Add(Bob, Pair.Tag<Eats, Pears>());
 
         // Pair Component (Relation generic)
         world.Add(Bob, Pair.Relation(new Requires(5)).Target(Apples));
@@ -96,7 +82,7 @@ public unsafe partial struct World
         world.Add(Bob, Pair.Relation(SpawnsAt).Target(new Position(10, 20)));
 
         // Pair Component (Relation generic + Target generic)
-        world.Add(Bob, Pair.Get<Requires, Position>(new Requires(5)));
+        world.Add(Bob, Pair.Component<Requires, Position>(new Requires(5)));
         world.Add(Bob, Pair.Relation(new Requires(5)).Target<Position>());
         world.Add(Bob, Pair.Relation<LivesAt>().Target(new Position(10, 20)));
     }
@@ -138,13 +124,13 @@ public unsafe partial struct World
     private void GetTest(World world)
     {
         // Pair Component (Relation generic)
-        var relation = world.Get(Bob, Pair.Relation<Requires>.Target(Apples));
+        var relation = world.Get(Bob, Pair.Relation<Requires>().Target(Apples));
 
         // Pair Component (Target generic)
         var target = world.Get(Bob, Pair.Relation(SpawnsAt).Target<Position>());
 
         // Pair Component (Relation generic + Target generic)
-        var relation = world.Get(Bob, Pair.Get<Requires, Position>());
+        var requirements = world.Get(Bob, Pair.Component<Requires, Position>());
         var home = world.Get(Bob, Pair.Relation<LivesAt>().Target<Position>());
     }
 }
