@@ -45,10 +45,12 @@ public unsafe partial struct World
     ///     The data type <typeparamref name="T"/> must match the component the id
     ///     refers to; Flecs validates the size against the registered layout.
     /// </remarks>
-    public void Set<T>(Entity entity, Id id, in T data) where T : unmanaged
+    internal void Set<T>(Entity entity, Id id, in T data) where T : unmanaged
     {
         fixed (T* ptr = &data)
+        {
             ecs_set_id(_handle, entity, id, (nint)sizeof(T), ptr);
+        }
     }
 
     /// <summary>
@@ -126,6 +128,34 @@ public unsafe partial struct World
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add<T>(Entity entity) where T : unmanaged =>
         ecs_add_id(_handle, entity, ComponentId<T>.GetId(_handle));
+
+    /// <summary>
+    ///     Add an <see cref="Id"/> with value <typeparamref name="T"/> to
+    ///     <paramref name="entity"/>. Does nothing if the entity already has
+    ///     the id.
+    /// </summary>
+    /// <remarks>
+    ///     This function has no effects if the entity already has the id.
+    /// </remarks>
+    /// <typeparam name="T">
+    ///     The type of component to add to the entity.
+    /// </typeparam>
+    /// <param name="entity">
+    ///     The entity to which the component should be added.
+    /// </param>
+    /// <param name="value">
+    ///     The value to set on the component.
+    /// </param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Add<T>(Entity entity, T value)
+        where T : unmanaged
+    {
+        var id = ComponentId<T>.GetId(_handle);
+        if (Has(entity, id))
+            return;
+
+        Set(entity, id, value);
+    }
 
     /// <inheritdoc cref="Remove(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
