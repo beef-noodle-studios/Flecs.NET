@@ -102,14 +102,6 @@ public sealed class PairApiTests
             Assert.That(alicePosition.X, Is.EqualTo(1));
             Assert.That(alicePosition.Y, Is.EqualTo(2));
         }
-
-        //_world.Add(bob, Pair.Relation<SpawnsAt>().Target(new Position(3, 4)));
-        //var bobPosition = _world.Get(bob, Pair.Relation<SpawnsAt>().Target<Position>());
-        //using (Assert.EnterMultipleScope())
-        //{
-        //    Assert.That(bobPosition.X, Is.EqualTo(3));
-        //    Assert.That(bobPosition.Y, Is.EqualTo(4));
-        //}
     }
 
     [Test]
@@ -131,6 +123,32 @@ public sealed class PairApiTests
         Assert.That(_world.TryGet(alice, Pair.Relation<Serializable>().Target<Position>(), out var _), Is.False);
     }
 
+    [Test]
+    public void Entity_can_have_multiple_pairs_with_same_relation()
+    {
+        var alice = _world.CreateEntity();
+        var likes = _world.CreateEntity();
+        var apples = _world.CreateEntity();
+        var oranges = _world.CreateEntity();
+
+        _world.Add(alice, Pair.Relation(likes).Target(apples));
+        _world.Add(alice, Pair.Relation(likes).Target(oranges));
+        Assert.That(_world.Has(alice, Pair.Relation(likes).Target(apples)), Is.True);
+        Assert.That(_world.Has(alice, Pair.Relation(likes).Target(oranges)), Is.True);
+    }
+
+    [Test]
+    public void Relation_enum_targets_are_exclusive()
+    {
+        var paint = _world.CreateEntity();
+        var color = _world.CreateEntity();
+        _world.Set(paint, Pair.Relation(color).Target(ColorType.Red));
+        Assert.That(_world.Get(paint, Pair.Relation(color).Target<ColorType>()), Is.EqualTo(ColorType.Red));
+
+        _world.Set(paint, Pair.Relation(color).Target(ColorType.Blue));
+        Assert.That(_world.Get(paint, Pair.Relation(color).Target<ColorType>()), Is.EqualTo(ColorType.Blue));
+    }
+
     struct Likes;
     struct Oranges;
     struct SpawnsAt;
@@ -138,4 +156,9 @@ public sealed class PairApiTests
     struct Serializable;
     record struct Requires(int Amount);
     record struct Position(float X, float Y);
+    enum ColorType
+    {
+        Red,
+        Blue
+    }
 }
