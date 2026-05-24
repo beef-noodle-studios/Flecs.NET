@@ -1,6 +1,5 @@
-﻿using static Flecs.NET.Bindings.flecs;
-using NoodleStudios.Flecs.Core;
-using System.Runtime.CompilerServices;
+﻿using NoodleStudios.Flecs.Core;
+using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
 
@@ -103,7 +102,7 @@ public unsafe static class Pair
     public static bool Has(this ReadOnlyWorld world, Entity entity, TagResolver resolver)
     {
         var pairId = ecs_make_pair(resolver.Relation, resolver.Target);
-        bool result = ecs_has_id(world.Handle, entity, pairId);
+        bool result = world.Has(entity, pairId);
         return result;
     }
 
@@ -152,7 +151,7 @@ public unsafe static class Pair
             return false;
 
         var pairId = ecs_make_pair(relationId, targetId);
-        bool result = ecs_has_id(world.Handle, entity, pairId);
+        bool result = world.Has(entity, pairId);
         return result;
     }
 
@@ -222,6 +221,26 @@ public unsafe static class Pair
         return ref world.AsReadOnly().Get(entity, resolver);
     }
 
+    public static bool TryGet<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver, out TRelation relation)
+        where TRelation : unmanaged
+    {
+        if (!world.TryGetId<TRelation>(out var relationId))
+        {
+            relation = default;
+            return false;
+        }
+        var targetId = resolver.Target;
+        var pairId = Ecs.MakePair(relationId, targetId);
+        bool result = world.TryGet(entity, pairId, out relation);
+        return result;
+    }
+
+    public static bool TryGet<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver, out TRelation relation)
+        where TRelation : unmanaged
+    {
+        return world.AsReadOnly().TryGet(entity, resolver, out relation);
+    }
+
     public readonly ref struct ComponentResolverWithTargetType<TTarget>(Id relation)
         where TTarget : unmanaged
     {
@@ -280,6 +299,27 @@ public unsafe static class Pair
         where TTarget : unmanaged
     {
         return ref world.AsReadOnly().Get(entity, resolver);
+    }
+
+    public static bool TryGet<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver, out TTarget target)
+        where TTarget : unmanaged
+    {
+        return world.AsReadOnly().TryGet(entity, resolver, out target);
+    }
+
+    public static bool TryGet<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver, out TTarget target)
+        where TTarget : unmanaged
+    {
+        var relationId = resolver.Relation;
+        if (!world.TryGetId<TTarget>(out var targetId))
+        {
+            target = default;
+            return false;
+        }
+
+        var pairId = Ecs.MakePair(relationId, targetId);
+        bool result = world.TryGet(entity, pairId, out target);
+        return result;
     }
 
     public readonly ref struct ComponentResolver<TRelation, TTarget>
@@ -356,8 +396,33 @@ public unsafe static class Pair
             targetId = Id.None;
 
         var pairId = ecs_make_pair(relationId, targetId);
-        void* ptr = ecs_get_id(world.Handle, entity, pairId);
-        return ref Unsafe.AsRef<TRelation>(ptr);
+        return ref world.Get<TRelation>(entity, pairId);
+    }
+
+    public static bool TryGet<TRelation, TTarget>(
+        this ReadOnlyWorld world,
+        Entity entity,
+        ComponentResolver<TRelation, TTarget> resolver,
+        out TRelation relation
+        )
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        if (!world.TryGetId<TRelation>(out var relationId))
+        {
+            relation = default;
+            return false;
+        }
+
+        if (!world.TryGetId<TTarget>(out var targetId))
+        {
+            relation = default;
+            return false;
+        }
+
+        var pairId = ecs_make_pair(relationId, targetId);
+        bool result = world.TryGet(entity, pairId, out relation);
+        return result;
     }
 
     public readonly ref struct ComponentWithRelationValue<TRelation>(TRelation relation, Id target)
