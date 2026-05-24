@@ -74,8 +74,7 @@ public unsafe partial struct World
     /// </exception>
     public ref readonly T Get<T>(Entity entity, Id id) where T : unmanaged
     {
-        void* ptr = ecs_get_id(_handle, entity, id);
-        if (ptr == null)
+        if (!TryGetPtrInternal(entity, id, out void* ptr))
             throw new InvalidOperationException(
                 $"Entity {(ulong)entity} does not have component '{typeof(T).Name}'.");
 
@@ -100,7 +99,10 @@ public unsafe partial struct World
     /// </remarks>
     public ref T GetMut<T>(Entity entity, Id id) where T : unmanaged
     {
-        void* ptr = ecs_ensure_id(_handle, entity, id);
+        if (!TryGetPtrInternal(entity, id, out void* ptr))
+            throw new InvalidOperationException(
+                $"Entity {(ulong)entity} does not have component '{typeof(T).Name}'.");
+
         return ref Unsafe.AsRef<T>(ptr);
     }
 
@@ -110,10 +112,10 @@ public unsafe partial struct World
     /// <returns>
     ///     True and the value if present; otherwise false and the default value.
     /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGet<T>(Entity entity, Id id, out T value) where T : unmanaged
     {
-        void* ptr = ecs_get_id(_handle, entity, id);
-        if (ptr == null)
+        if (!TryGetPtrInternal(entity, id, out void* ptr))
         {
             value = default;
             return false;
@@ -121,6 +123,19 @@ public unsafe partial struct World
 
         value = Unsafe.Read<T>(ptr);
         return true;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool TryGetPtrInternal(Entity entity, Id id, out void* ptr)
+    {
+        if (IsTag(id))
+        {
+            ptr = null;
+            return false;
+        }
+
+        ptr = ecs_get_id(_handle, entity, id);
+        return ptr != null;
     }
 
     /// <summary>
@@ -218,4 +233,17 @@ public unsafe partial struct World
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity Component<T>() where T : unmanaged => new(ComponentId<T>.GetId(_handle));
+
+    /// <summary>
+    ///     Evaluate whether an <see cref="Id"/> is a tag (has no associated
+    ///     value) or a component (has an associated value).
+    /// </summary>
+    /// <param name="id">
+    ///     The <see cref="Id"/> to evaluate.
+    /// </param>
+    /// <returns>
+    ///     True if the <see cref="Id"/> is a tag.
+    /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsTag(Id id) => ecs_id_is_tag(_handle, id);
 }

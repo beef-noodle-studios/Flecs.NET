@@ -425,6 +425,18 @@ public unsafe static class Pair
         return result;
     }
 
+    public static bool TryGet<TRelation, TTarget>(
+        this World world,
+        Entity entity,
+        ComponentResolver<TRelation, TTarget> resolver,
+        out TRelation relation
+        )
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        return world.AsReadOnly().TryGet(entity, resolver, out relation);
+    }
+
     public readonly ref struct ComponentWithRelationValue<TRelation>(TRelation relation, Id target)
         where TRelation : unmanaged
     {
