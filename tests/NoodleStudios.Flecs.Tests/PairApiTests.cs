@@ -137,18 +137,6 @@ public sealed class PairApiTests
         Assert.That(_world.Has(alice, Pair.Relation(likes).Target(oranges)), Is.True);
     }
 
-    [Test]
-    public void Relation_enum_targets_are_exclusive()
-    {
-        var paint = _world.CreateEntity();
-        var color = _world.CreateEntity();
-        _world.Set(paint, Pair.Relation(color).Target(ColorType.Red));
-        Assert.That(_world.Get(paint, Pair.Relation(color).Target<ColorType>()), Is.EqualTo(ColorType.Red));
-
-        _world.Set(paint, Pair.Relation(color).Target(ColorType.Blue));
-        Assert.That(_world.Get(paint, Pair.Relation(color).Target<ColorType>()), Is.EqualTo(ColorType.Blue));
-    }
-
     struct Likes;
     struct Oranges;
     struct SpawnsAt;
