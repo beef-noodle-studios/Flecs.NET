@@ -1,9 +1,4 @@
 ﻿using static Flecs.NET.Bindings.flecs;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NoodleStudios.Flecs.Core;
 
@@ -13,6 +8,16 @@ namespace NoodleStudios.Flecs.Core;
 /// </summary>
 public static class Ecs
 {
+    /// <summary>
+    ///     The built-in <c>IsA</c> relationship id.
+    /// </summary>
+    public static Id IsA => EcsIsA;
+
+    /// <summary>
+    ///     The built-in <c>ChildOf</c> relationship id.
+    /// </summary>
+    public static Id ChildOf => EcsChildOf;
+
     /// <summary>
     ///     Make a pair ID.
     /// </summary>

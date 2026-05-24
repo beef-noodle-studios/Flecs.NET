@@ -182,8 +182,13 @@ public unsafe partial struct World
 
     /// <inheritdoc cref="Remove(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Remove<T>(Entity entity) where T : unmanaged =>
-        ecs_remove_id(_handle, entity, ComponentId<T>.GetId(_handle));
+    public void Remove<T>(Entity entity) where T : unmanaged
+    {
+        if (!ComponentId<T>.TryGetId(_handle, out var id))
+            return;
+
+        ecs_remove_id(_handle, entity, id);
+    }
 
     /// <inheritdoc cref="Has(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -192,7 +197,7 @@ public unsafe partial struct World
         if (!ComponentId<T>.TryGetId(_handle, out var id))
             return false;
 
-        return ecs_has_id(_handle, entity, id);
+        return Has(entity, id);
     }
 
     /// <summary>

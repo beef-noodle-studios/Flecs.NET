@@ -611,4 +611,28 @@ public unsafe static class Pair
     {
         return new ComponentResolver<TRelation, TTarget>();
     }
+
+    /// <summary>
+    ///     Shortcut to create a <see cref="TagResolver"/> for the built-in
+    ///     <c>IsA</c> relationship.
+    /// </summary>
+    /// <param name="superType">
+    ///     The "parent" entity of the inheritance relationship.
+    /// </param>
+    /// <returns>
+    ///     A <see cref="TagResolver"/> for the <c>IsA</c> relationship.
+    /// </returns>
+    public static TagResolver IsA(Entity superType) => new(Ecs.IsA, superType);
+
+    /// <summary>
+    ///     Shortcut to create a <see cref="TagResolver"/> for the built-in
+    ///     <c>ChildOf</c> relationship.
+    /// </summary>
+    /// <param name="entity">
+    ///     The "parent" entity of the child relationship.
+    /// </param>
+    /// <returns>
+    ///     A <see cref="TagResolver"/> for the <c>ChildOf</c> relationship.
+    /// </returns>
+    public static TagResolver ChildOf(Entity entity) => new(Ecs.ChildOf, entity);
 }
