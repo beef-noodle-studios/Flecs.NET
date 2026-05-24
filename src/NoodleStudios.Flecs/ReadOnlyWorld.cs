@@ -19,9 +19,6 @@ public readonly unsafe partial struct ReadOnlyWorld(World world)
 {
     private readonly World _world = world;
 
-    /// <inheritdoc cref="World.Handle"/>
-    internal ecs_world_t* Handle => _world.Handle;
-
     /// <summary>
     ///     Implicitly convert from a read-write <see cref="World"/> wrapper to
     ///     a <see cref="ReadOnlyWorld"/> wrapper.
