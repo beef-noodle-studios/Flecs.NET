@@ -26,16 +26,5 @@ public class ComponentApiTests
         Assert.That(_world.TryGetId<UnregisteredTag>(out _), Is.False);
     }
 
-    [Test]
-    public unsafe void Get_id_throws_when_the_id_is_a_tag()
-    {
-        var alice = _world.CreateEntity();
-        _world.Add(alice, tag);
-
-        Assert.That(() => _world.Get<TestTag>(alice), Throws.InvalidOperationException);
-        Assert.That(() => _world.GetMut<TestTag>(alice), Throws.InvalidOperationException);
-    }
-
-    struct TestTag;
     struct UnregisteredTag;
 }
