@@ -201,22 +201,22 @@ public unsafe partial struct World
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set<T>(Entity entity, in T data) where T : unmanaged =>
-        Set(entity, new Id(ComponentId<T>.GetId(_handle)), in data);
+        Set(entity, ComponentId<T>.GetId(_handle), in data);
 
     /// <inheritdoc cref="Get{T}(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref readonly T Get<T>(Entity entity) where T : unmanaged =>
-        ref Get<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+        ref Get<T>(entity, ComponentId<T>.GetId(_handle));
 
     /// <inheritdoc cref="GetMut{T}(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T GetMut<T>(Entity entity) where T : unmanaged =>
-        ref GetMut<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+        ref GetMut<T>(entity, ComponentId<T>.GetId(_handle));
 
     /// <inheritdoc cref="TryGet{T}(Entity, Id, out T)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryGet<T>(Entity entity, out T value) where T : unmanaged =>
-        TryGet(entity, new Id(ComponentId<T>.GetId(_handle)), out value);
+        TryGet(entity, ComponentId<T>.GetId(_handle), out value);
 
     /// <inheritdoc cref="Modified(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
