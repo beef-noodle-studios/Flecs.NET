@@ -139,14 +139,8 @@ public sealed class PairApiTests
 
     struct Likes;
     struct Oranges;
-    struct SpawnsAt;
     [PairIsTag]
     struct Serializable;
     record struct Requires(int Amount);
     record struct Position(float X, float Y);
-    enum ColorType
-    {
-        Red,
-        Blue
-    }
 }
