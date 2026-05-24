@@ -1,4 +1,5 @@
-﻿using static Flecs.NET.Bindings.flecs;
+﻿using System.Runtime.CompilerServices;
+using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs.Core;
 
@@ -30,6 +31,7 @@ public static class Ecs
     /// <returns>
     ///     A pair ID.
     /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Id MakePair(Id relationship, Id target)
     {
         var pairId = ecs_make_pair(relationship, target);
