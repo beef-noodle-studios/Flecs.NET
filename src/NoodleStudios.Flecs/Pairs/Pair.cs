@@ -1,4 +1,5 @@
 ﻿using NoodleStudios.Flecs.Core;
+using System.Runtime.CompilerServices;
 using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
@@ -14,22 +15,26 @@ public unsafe static class Pair
     {
         private readonly Id _relation = relation;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TagResolver Target(Id target)
         {
             return new TagResolver(_relation, target);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TagResolver Target(Entity target)
         {
             return new TagResolver(_relation, target);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentResolverWithTargetType<TTarget> Target<TTarget>()
             where TTarget : unmanaged
         {
             return new ComponentResolverWithTargetType<TTarget>(_relation);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentWithTargetValue<TTarget> Target<TTarget>(TTarget target)
             where TTarget : unmanaged
         {
@@ -40,22 +45,26 @@ public unsafe static class Pair
     public readonly ref struct WithRelationType<TRelation>
         where TRelation : unmanaged
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentResolverWithRelationType<TRelation> Target(Id target)
         {
             return new ComponentResolverWithRelationType<TRelation>(target);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentResolverWithRelationType<TRelation> Target(Entity target)
         {
             return new ComponentResolverWithRelationType<TRelation>(target);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentWithTargetValue<TRelation, TTarget> Target<TTarget>(TTarget targetValue)
             where TTarget : unmanaged
         {
             return new ComponentWithTargetValue<TRelation, TTarget>(targetValue);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentResolver<TRelation, TTarget> Target<TTarget>()
             where TTarget : unmanaged
         {
@@ -68,11 +77,13 @@ public unsafe static class Pair
     {
         private readonly TRelation _relation = relation;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentWithRelationValue<TRelation> Target(Id target)
         {
             return new ComponentWithRelationValue<TRelation>(_relation, target);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ComponentWithRelationValue<TRelation, TTarget> Target<TTarget>()
             where TTarget : unmanaged
         {
@@ -86,12 +97,14 @@ public unsafe static class Pair
         public readonly Id Target = target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add(this World world, Entity entity, TagResolver resolver)
     {
-        var pairId = ecs_make_pair(resolver.Relation, resolver.Target);
+        var pairId = Ecs.MakePair(resolver.Relation, resolver.Target);
         ecs_add_id(world.Handle, entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set(this World world, Entity entity, TagResolver resolver)
     {
         // For a Tag pair, Add and Set are effectively the same since there is
@@ -99,13 +112,15 @@ public unsafe static class Pair
         Add(world, entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has(this ReadOnlyWorld world, Entity entity, TagResolver resolver)
     {
-        var pairId = ecs_make_pair(resolver.Relation, resolver.Target);
+        var pairId = Ecs.MakePair(resolver.Relation, resolver.Target);
         bool result = world.Has(entity, pairId);
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has(this World world, Entity entity, TagResolver resolver)
     {
         return world.AsReadOnly().Has(entity, resolver);
@@ -117,16 +132,18 @@ public unsafe static class Pair
     {
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation, TTarget>(this World world, Entity entity, TagResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
-        ecs_add_id(world.Handle, entity, pairId);
+        var pairId = Ecs.MakePair(relationId, targetId);
+        world.Add(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation, TTarget>(this World world, Entity entity, TagResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -136,6 +153,7 @@ public unsafe static class Pair
         Add(world, entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
@@ -150,11 +168,12 @@ public unsafe static class Pair
         if (!world.TryGetId<TTarget>(out var targetId))
             return false;
 
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         bool result = world.Has(entity, pairId);
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation, TTarget>(this World world, Entity entity, TagResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -168,24 +187,27 @@ public unsafe static class Pair
         public readonly Id Target = target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = resolver.Target;
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Add(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = resolver.Target;
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
@@ -198,12 +220,14 @@ public unsafe static class Pair
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
         return world.AsReadOnly().Has(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref readonly TRelation Get<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
@@ -215,12 +239,14 @@ public unsafe static class Pair
         return ref world.Get<TRelation>(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref readonly TRelation Get<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
         where TRelation : unmanaged
     {
         return ref world.AsReadOnly().Get(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TRelation>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver, out TRelation relation)
         where TRelation : unmanaged
     {
@@ -235,6 +261,7 @@ public unsafe static class Pair
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver, out TRelation relation)
         where TRelation : unmanaged
     {
@@ -247,24 +274,27 @@ public unsafe static class Pair
         public readonly Id Relation = relation;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
         var relationId = resolver.Relation;
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Add(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
         var relationId = resolver.Relation;
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
@@ -277,12 +307,14 @@ public unsafe static class Pair
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
         return world.AsReadOnly().Has(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref readonly TTarget Get<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
@@ -295,18 +327,21 @@ public unsafe static class Pair
         return ref world.Get<TTarget>(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref readonly TTarget Get<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
         where TTarget : unmanaged
     {
         return ref world.AsReadOnly().Get(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver, out TTarget target)
         where TTarget : unmanaged
     {
         return world.AsReadOnly().TryGet(entity, resolver, out target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TTarget>(this ReadOnlyWorld world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver, out TTarget target)
         where TTarget : unmanaged
     {
@@ -328,26 +363,29 @@ public unsafe static class Pair
     {
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Add(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
@@ -362,11 +400,12 @@ public unsafe static class Pair
         if (!world.TryGetId<TTarget>(out var targetId))
             return false;
 
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         bool result = world.Has(entity, pairId);
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -374,6 +413,7 @@ public unsafe static class Pair
         return world.AsReadOnly().Has(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TRelation Get<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -381,6 +421,7 @@ public unsafe static class Pair
         return world.AsReadOnly().Get(entity, resolver);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ref readonly TRelation Get<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
@@ -399,6 +440,7 @@ public unsafe static class Pair
         return ref world.Get<TRelation>(entity, pairId);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
@@ -425,6 +467,7 @@ public unsafe static class Pair
         return result;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryGet<TRelation, TTarget>(
         this World world,
         Entity entity,
@@ -444,12 +487,13 @@ public unsafe static class Pair
         public readonly Id Target = target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation>(this World world, Entity entity, ComponentWithRelationValue<TRelation> pair)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = pair.Target;
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
 
         if (world.Has(entity, pairId))
             return;
@@ -457,12 +501,13 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Relation);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation>(this World world, Entity entity, ComponentWithRelationValue<TRelation> pair)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = pair.Target;
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId, pair.Relation);
     }
 
@@ -472,14 +517,15 @@ public unsafe static class Pair
     {
         public readonly TRelation Relation = relation;
     }
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
 
         if (world.Has(entity, pairId))
             return;
@@ -487,13 +533,14 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Relation);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId, pair.Relation);
     }
 
@@ -504,12 +551,13 @@ public unsafe static class Pair
         public readonly TTarget Target = target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
         where TTarget : unmanaged
     {
         var relationId = pair.Relation;
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
 
         if (world.Has(entity, pairId))
             return;
@@ -517,12 +565,13 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
         where TTarget : unmanaged
     {
         var relationId = pair.Relation;
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId, pair.Target);
     }
 
@@ -533,13 +582,14 @@ public unsafe static class Pair
         public readonly TTarget Target = target;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
 
         if (world.Has(entity, pairId))
             return;
@@ -547,43 +597,50 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
-        var pairId = ecs_make_pair(relationId, targetId);
+        var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId, pair.Target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static WithRelationId Relation(Id relation)
     {
         return new WithRelationId(relation);
     }
-
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static WithRelationId Relation(Entity relation)
     {
         return new WithRelationId(relation);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static WithRelationType<TRelation> Relation<TRelation>()
         where TRelation : unmanaged
     {
         return new WithRelationType<TRelation>();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static WithRelationValue<TRelation> Relation<TRelation>(TRelation relation)
         where TRelation : unmanaged
     {
         return new WithRelationValue<TRelation>(relation);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TagResolver Tag(Id relation, Id target)
     {
         return new TagResolver(relation, target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TagResolver<TRelation, TTarget> Tag<TRelation, TTarget>()
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -591,6 +648,7 @@ public unsafe static class Pair
         return new TagResolver<TRelation, TTarget>();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ComponentWithRelationValue<TRelation, TTarget> Component<TRelation, TTarget>(TRelation relation)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -598,6 +656,7 @@ public unsafe static class Pair
         return new ComponentWithRelationValue<TRelation, TTarget>(relation);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ComponentWithTargetValue<TRelation, TTarget> Component<TRelation, TTarget>(TTarget target)
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -605,6 +664,7 @@ public unsafe static class Pair
         return new ComponentWithTargetValue<TRelation, TTarget>(target);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ComponentResolver<TRelation, TTarget> Component<TRelation, TTarget>()
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -622,6 +682,7 @@ public unsafe static class Pair
     /// <returns>
     ///     A <see cref="TagResolver"/> for the <c>IsA</c> relationship.
     /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TagResolver IsA(Entity superType) => new(Ecs.IsA, superType);
 
     /// <summary>
@@ -634,5 +695,6 @@ public unsafe static class Pair
     /// <returns>
     ///     A <see cref="TagResolver"/> for the <c>ChildOf</c> relationship.
     /// </returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TagResolver ChildOf(Entity entity) => new(Ecs.ChildOf, entity);
 }
