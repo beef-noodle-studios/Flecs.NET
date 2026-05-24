@@ -35,10 +35,10 @@ public unsafe static class Pair
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ComponentWithTargetValue<TTarget> Target<TTarget>(TTarget target)
+        public ComponentInitializerWithTargetValue<TTarget> Target<TTarget>(TTarget target)
             where TTarget : unmanaged
         {
-            return new ComponentWithTargetValue<TTarget>(_relation, target);
+            return new ComponentInitializerWithTargetValue<TTarget>(_relation, target);
         }
     }
 
@@ -58,10 +58,10 @@ public unsafe static class Pair
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ComponentWithTargetValue<TRelation, TTarget> Target<TTarget>(TTarget targetValue)
+        public ComponentInitializerWithTargetValue<TRelation, TTarget> Target<TTarget>(TTarget targetValue)
             where TTarget : unmanaged
         {
-            return new ComponentWithTargetValue<TRelation, TTarget>(targetValue);
+            return new ComponentInitializerWithTargetValue<TRelation, TTarget>(targetValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -78,19 +78,29 @@ public unsafe static class Pair
         private readonly TRelation _relation = relation;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ComponentWithRelationValue<TRelation> Target(Id target)
+        public ComponentInitializerWithRelationValue<TRelation> Target(Id target)
         {
-            return new ComponentWithRelationValue<TRelation>(_relation, target);
+            return new ComponentInitializerWithRelationValue<TRelation>(_relation, target);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ComponentWithRelationValue<TRelation, TTarget> Target<TTarget>()
+        public ComponentInitializerWithRelationValue<TRelation, TTarget> Target<TTarget>()
             where TTarget : unmanaged
         {
-            return new ComponentWithRelationValue<TRelation, TTarget>(_relation);
+            return new ComponentInitializerWithRelationValue<TRelation, TTarget>(_relation);
         }
     }
 
+    /// <summary>
+    ///     Value type used to resolve pair tags via Add/Set/Remove/Has
+    ///     extension methods.
+    /// </summary>
+    /// <param name="relation">
+    ///     The relation id of the pair tag to resolve.
+    /// </param>
+    /// <param name="target">
+    ///     The target id of the pair tag to resolve.
+    /// </param>
     public readonly ref struct TagResolver(Id relation, Id target)
     {
         public readonly Id Relation = relation;
@@ -113,6 +123,13 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Remove(this World world, Entity entity, TagResolver resolver)
+    {
+        var pairId = Ecs.MakePair(resolver.Relation, resolver.Target);
+        world.Remove(entity, pairId);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Has(this ReadOnlyWorld world, Entity entity, TagResolver resolver)
     {
         var pairId = Ecs.MakePair(resolver.Relation, resolver.Target);
@@ -126,6 +143,16 @@ public unsafe static class Pair
         return world.AsReadOnly().Has(entity, resolver);
     }
 
+    /// <summary>
+    ///     Value type used to resolve pair tags via Add/Set/Remove/Has
+    ///     extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair tag to resolve.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair tag to resolve.
+    /// </typeparam>
     public readonly ref struct TagResolver<TRelation, TTarget>()
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -151,6 +178,17 @@ public unsafe static class Pair
         // For a Tag pair, Add and Set are effectively the same since there is no
         // data to set.
         Add(world, entity, resolver);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Remove<TRelation, TTarget>(this World world, Entity entity, TagResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = Ecs.MakePair(relationId, targetId);
+        world.Remove(entity, pairId);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -181,6 +219,17 @@ public unsafe static class Pair
         return world.AsReadOnly().Has(entity, resolver);
     }
 
+    /// <summary>
+    ///     Value type for resolving pair components with a known relation type
+    ///     and unknown target type via Add/Set/Remove/Has/Get/TryGet
+    ///     extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair component to resolve.
+    /// </typeparam>
+    /// <param name="target">
+    ///     The target id of the pair component to resolve.
+    /// </param>
     public readonly ref struct ComponentResolverWithRelationType<TRelation>(Id target)
         where TRelation : unmanaged
     {
@@ -205,6 +254,16 @@ public unsafe static class Pair
         var targetId = resolver.Target;
         var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Remove<TRelation>(this World world, Entity entity, ComponentResolverWithRelationType<TRelation> resolver)
+        where TRelation : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = resolver.Target;
+        var pairId = Ecs.MakePair(relationId, targetId);
+        world.Remove(entity, pairId);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -268,6 +327,17 @@ public unsafe static class Pair
         return world.AsReadOnly().TryGet(entity, resolver, out relation);
     }
 
+    /// <summary>
+    ///     Value type for resolving pair components with a known target type
+    ///     and unknown relation type via Add/Set/Remove/Has/Get/TryGet
+    ///     extension methods.
+    /// </summary>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair component to resolve.
+    /// </typeparam>
+    /// <param name="relation">
+    ///     The relation id of the pair component to resolve.
+    /// </param>
     public readonly ref struct ComponentResolverWithTargetType<TTarget>(Id relation)
         where TTarget : unmanaged
     {
@@ -292,6 +362,16 @@ public unsafe static class Pair
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
         var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Remove<TTarget>(this World world, Entity entity, ComponentResolverWithTargetType<TTarget> resolver)
+        where TTarget : unmanaged
+    {
+        var relationId = resolver.Relation;
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = Ecs.MakePair(relationId, targetId);
+        world.Remove(entity, pairId);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -357,6 +437,16 @@ public unsafe static class Pair
         return result;
     }
 
+    /// <summary>
+    ///     Value type for resolving pair components with known relation and
+    ///     target types via Add/Set/Remove/Has/Get/TryGet extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair component to resolve.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair component to resolve.
+    /// </typeparam>
     public readonly ref struct ComponentResolver<TRelation, TTarget>
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -383,6 +473,17 @@ public unsafe static class Pair
         var targetId = ComponentId<TTarget>.GetId(world.Handle);
         var pairId = Ecs.MakePair(relationId, targetId);
         world.Set(entity, pairId);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Remove<TRelation, TTarget>(this World world, Entity entity, ComponentResolver<TRelation, TTarget> resolver)
+        where TRelation : unmanaged
+        where TTarget : unmanaged
+    {
+        var relationId = ComponentId<TRelation>.GetId(world.Handle);
+        var targetId = ComponentId<TTarget>.GetId(world.Handle);
+        var pairId = Ecs.MakePair(relationId, targetId);
+        world.Remove(entity, pairId);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -480,7 +581,20 @@ public unsafe static class Pair
         return world.AsReadOnly().TryGet(entity, resolver, out relation);
     }
 
-    public readonly ref struct ComponentWithRelationValue<TRelation>(TRelation relation, Id target)
+    /// <summary>
+    ///     Value type for setting pair components with a known relation value
+    ///     and unknown target type via Add/Set extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair component to set.
+    /// </typeparam>
+    /// <param name="relation">
+    ///     The value of the relation component to set on the pair component.
+    /// </param>
+    /// <param name="target">
+    ///     The target id of the pair component to set.
+    /// </param>
+    public readonly ref struct ComponentInitializerWithRelationValue<TRelation>(TRelation relation, Id target)
         where TRelation : unmanaged
     {
         public readonly TRelation Relation = relation;
@@ -488,7 +602,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add<TRelation>(this World world, Entity entity, ComponentWithRelationValue<TRelation> pair)
+    public static void Add<TRelation>(this World world, Entity entity, ComponentInitializerWithRelationValue<TRelation> pair)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
@@ -502,7 +616,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Set<TRelation>(this World world, Entity entity, ComponentWithRelationValue<TRelation> pair)
+    public static void Set<TRelation>(this World world, Entity entity, ComponentInitializerWithRelationValue<TRelation> pair)
         where TRelation : unmanaged
     {
         var relationId = ComponentId<TRelation>.GetId(world.Handle);
@@ -511,7 +625,20 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Relation);
     }
 
-    public readonly ref struct ComponentWithRelationValue<TRelation, TTarget>(TRelation relation)
+    /// <summary>
+    ///     Value type for setting pair components with a known target type and
+    ///     relation value via Add/Set extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair component to set.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair component to set.
+    /// </typeparam>
+    /// <param name="relation">
+    ///     The value of the relation component to set on the pair component.
+    /// </param>
+    public readonly ref struct ComponentInitializerWithRelationValue<TRelation, TTarget>(TRelation relation)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -519,7 +646,7 @@ public unsafe static class Pair
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
+    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentInitializerWithRelationValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -534,7 +661,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithRelationValue<TRelation, TTarget> pair)
+    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentInitializerWithRelationValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -544,7 +671,20 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Relation);
     }
 
-    public readonly ref struct ComponentWithTargetValue<TTarget>(Id relation, TTarget target)
+    /// <summary>
+    ///     Value for setting pair components with a known target value and
+    ///     unknown relation type via Add/Set extension methods.
+    /// </summary>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair component to set.
+    /// </typeparam>
+    /// <param name="relation">
+    ///     The id of the relation component to set on the pair component.
+    /// </param>
+    /// <param name="target">
+    ///     The value of the target component to set on the pair component.
+    /// </param>
+    public readonly ref struct ComponentInitializerWithTargetValue<TTarget>(Id relation, TTarget target)
         where TTarget : unmanaged
     {
         public readonly Id Relation = relation;
@@ -552,7 +692,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
+    public static void Add<TTarget>(this World world, Entity entity, ComponentInitializerWithTargetValue<TTarget> pair)
         where TTarget : unmanaged
     {
         var relationId = pair.Relation;
@@ -566,7 +706,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Set<TTarget>(this World world, Entity entity, ComponentWithTargetValue<TTarget> pair)
+    public static void Set<TTarget>(this World world, Entity entity, ComponentInitializerWithTargetValue<TTarget> pair)
         where TTarget : unmanaged
     {
         var relationId = pair.Relation;
@@ -575,7 +715,20 @@ public unsafe static class Pair
         world.Set(entity, pairId, pair.Target);
     }
 
-    public readonly ref struct ComponentWithTargetValue<TRelation, TTarget>(TTarget target)
+    /// <summary>
+    ///     Value for setting pair components with a known target value and
+    ///     relation type via Add/Set extension methods.
+    /// </summary>
+    /// <typeparam name="TRelation">
+    ///     The type of the relation id of the pair component to set.
+    /// </typeparam>
+    /// <typeparam name="TTarget">
+    ///     The type of the target id of the pair component to set.
+    /// </typeparam>
+    /// <param name="target">
+    ///     The value of the target component to set on the pair component.
+    /// </param>
+    public readonly ref struct ComponentInitializerWithTargetValue<TRelation, TTarget>(TTarget target)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -583,7 +736,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
+    public static void Add<TRelation, TTarget>(this World world, Entity entity, ComponentInitializerWithTargetValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -598,7 +751,7 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentWithTargetValue<TRelation, TTarget> pair)
+    public static void Set<TRelation, TTarget>(this World world, Entity entity, ComponentInitializerWithTargetValue<TRelation, TTarget> pair)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
@@ -649,19 +802,19 @@ public unsafe static class Pair
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ComponentWithRelationValue<TRelation, TTarget> Component<TRelation, TTarget>(TRelation relation)
+    public static ComponentInitializerWithRelationValue<TRelation, TTarget> Component<TRelation, TTarget>(TRelation relation)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
-        return new ComponentWithRelationValue<TRelation, TTarget>(relation);
+        return new ComponentInitializerWithRelationValue<TRelation, TTarget>(relation);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ComponentWithTargetValue<TRelation, TTarget> Component<TRelation, TTarget>(TTarget target)
+    public static ComponentInitializerWithTargetValue<TRelation, TTarget> Component<TRelation, TTarget>(TTarget target)
         where TRelation : unmanaged
         where TTarget : unmanaged
     {
-        return new ComponentWithTargetValue<TRelation, TTarget>(target);
+        return new ComponentInitializerWithTargetValue<TRelation, TTarget>(target);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -233,7 +233,7 @@ public unsafe partial struct World
     ///     in this world on first use.
     /// </summary>
     /// <remarks>
-    ///     A component is itself an entity, so the returned <see cref="FluentApi"/>
+    ///     A component is itself an entity, so the returned <see cref="Entity"/>
     ///     can be named, annotated, or used as a relationship or target in a pair.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
