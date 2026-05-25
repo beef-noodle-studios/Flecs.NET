@@ -14,7 +14,7 @@ public unsafe partial struct World
     /// <summary>
     ///     Begin building a query against this world.
     /// </summary>
-    public QueryBuilder QueryBuilder() => new(_handle);
+    public QueryBuilder CreateQuery() => new(_handle);
 
     /// <summary>
     ///     Free a query created by <see cref="Flecs.QueryBuilder.BuildCached"/> or

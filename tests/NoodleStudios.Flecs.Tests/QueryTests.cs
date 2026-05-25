@@ -15,7 +15,7 @@ public sealed class QueryTests
         world.Set(a, new Position { X = 1 });
         world.Set(b, new Position { X = 3 });
 
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         var seen = new List<int>();
         foreach (TableView table in query)
@@ -39,7 +39,7 @@ public sealed class QueryTests
         world.Set(both, new Velocity { X = 1 });
         world.Set(onlyPosition, new Position { X = 20 });
 
-        Query query = world.QueryBuilder().With<Position>().With<Velocity>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().BuildUncached();
 
         var seen = new List<int>();
         foreach (TableView table in query)
@@ -60,7 +60,7 @@ public sealed class QueryTests
         Entity e = world.CreateEntity();
         world.Set(e, new Position { X = 1 });
 
-        using (DisposableQuery query = world.QueryBuilder().With<Position>().BuildDisposable())
+        using (DisposableQuery query = world.CreateQuery().With<Position>().BuildDisposable())
             foreach (TableView table in query)
             {
                 Span<Position> positions = table.GetFieldSpan<Position>();
@@ -81,7 +81,7 @@ public sealed class QueryTests
         world.Set(both, new Velocity { X = 1 });
         world.Set(onlyPosition, new Position { X = 20 });
 
-        Query query = world.QueryBuilder().With<Position>().Without<Velocity>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().Without<Velocity>().BuildUncached();
 
         var seen = new List<int>();
         foreach (TableView table in query)
@@ -105,7 +105,7 @@ public sealed class QueryTests
         world.Set(withVelocity, new Velocity { X = 7 });
         world.Set(withoutVelocity, new Position { X = 2 });
 
-        Query query = world.QueryBuilder().With<Position>().Optional<Velocity>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().Optional<Velocity>().BuildUncached();
 
         bool sawPresent = false;
         bool sawAbsent = false;
@@ -144,7 +144,7 @@ public sealed class QueryTests
         world.Set(a, new Position { X = 1 });
         world.Set(b, new Position { X = 2 });
 
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         var entities = new List<ulong>();
         int total = 0;
@@ -169,7 +169,7 @@ public sealed class QueryTests
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
 
-        Query query = world.QueryBuilder().With<Velocity>().BuildUncached();
+        Query query = world.CreateQuery().With<Velocity>().BuildUncached();
 
         int tables = 0;
         foreach (TableView _ in query)
@@ -190,7 +190,7 @@ public sealed class QueryTests
         world.AddPair(e, likes, apples);
 
         Id pair = world.Pair(likes, apples);
-        Query query = world.QueryBuilder().With<Position>().With(likes, apples).BuildUncached();
+        Query query = world.CreateQuery().With<Position>().With(likes, apples).BuildUncached();
 
         var seen = new List<int>();
         foreach (TableView table in query)
@@ -212,8 +212,8 @@ public sealed class QueryTests
         for (int i = 0; i < 5; i++)
             world.Set(world.CreateEntity(), new Position { X = i });
 
-        Query cached = world.QueryBuilder().With<Position>().BuildCached();
-        Query uncached = world.QueryBuilder().With<Position>().BuildUncached();
+        Query cached = world.CreateQuery().With<Position>().BuildCached();
+        Query uncached = world.CreateQuery().With<Position>().BuildUncached();
 
         Assert.That(Collect(cached), Is.EquivalentTo(Collect(uncached)));
 
@@ -245,7 +245,7 @@ public sealed class QueryTests
         world.Set(a, new SparseValue { Value = 11 });
         world.Set(b, new SparseValue { Value = 22 });
 
-        Query query = world.QueryBuilder().With<SparseValue>().BuildUncached();
+        Query query = world.CreateQuery().With<SparseValue>().BuildUncached();
 
         var seen = new List<int>();
         bool reportedSparse = true;
@@ -276,7 +276,7 @@ public sealed class QueryTests
         Entity instance = world.CreateEntity();
         world.AddPair(instance, world.IsA, baseEntity);
 
-        Query query = world.QueryBuilder().With<Inherited>().BuildUncached();
+        Query query = world.CreateQuery().With<Inherited>().BuildUncached();
 
         bool sawShared = false;
         bool sawOwned = false;
@@ -315,7 +315,7 @@ public sealed class QueryTests
         world.Set(e, new Position { X = 1 });
         world.Set(e, new Velocity { X = 2 });
 
-        Query query = world.QueryBuilder()
+        Query query = world.CreateQuery()
             .With<Position>()
             .With<Velocity>().None()
             .BuildUncached();
@@ -342,7 +342,7 @@ public sealed class QueryTests
         world.Set(e, new Position { X = 1 });
         world.Add(e, tag);
 
-        Query query = world.QueryBuilder().With<Position>().With(tag).BuildUncached();
+        Query query = world.CreateQuery().With<Position>().With(tag).BuildUncached();
 
         bool matched = false;
         foreach (TableView table in query)
@@ -365,7 +365,7 @@ public sealed class QueryTests
         // uncached. The builder still pre-creates the cache entity to survive that
         // downgrade, so destroying the query must free it rather than leak it.
         using World world = new();
-        Query query = world.QueryBuilder().Optional<SparseValue>().BuildCached();
+        Query query = world.CreateQuery().Optional<SparseValue>().BuildCached();
 
         Entity entity = query.Entity;
         Assert.That((ulong)entity, Is.Not.Zero, "a cached build pre-creates a query entity");
@@ -382,7 +382,7 @@ public sealed class QueryTests
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
 
-        QueryBuilder builder = world.QueryBuilder();
+        QueryBuilder builder = world.CreateQuery();
         builder.With<Position>();
 
         Query first = builder.BuildCached();
@@ -416,7 +416,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         foreach (TableView _ in query) { }
 
@@ -437,7 +437,7 @@ public sealed class QueryTests
         world.Set(world.CreateEntity(), new Position { X = 1 });
         world.Set(world.CreateEntity(), new Position { X = 2 });
 
-        Query query = world.QueryBuilder().With<Position>().BuildCached();
+        Query query = world.CreateQuery().With<Position>().BuildCached();
 
         Assert.That(CountRows(query), Is.EqualTo(2));
         Assert.That(CountRows(query), Is.EqualTo(2));
@@ -460,7 +460,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         Assert.DoesNotThrow(() =>
         {
@@ -478,7 +478,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         // Finalizing an iterator that was never advanced must not throw.
         Query.Enumerator enumerator = query.GetEnumerator();
@@ -492,7 +492,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         Query.Enumerator enumerator = query.GetEnumerator();
         while (enumerator.MoveNext()) { }
@@ -518,7 +518,7 @@ public sealed class QueryTests
     public void Refining_before_adding_a_term_throws()
     {
         using World world = new();
-        Assert.Throws<InvalidOperationException>(() => world.QueryBuilder().In());
+        Assert.Throws<InvalidOperationException>(() => world.CreateQuery().In());
     }
 
 #if DEBUG
@@ -529,7 +529,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new SparseValue { Value = 1 });
-        Query query = world.QueryBuilder().With<SparseValue>().BuildUncached();
+        Query query = world.CreateQuery().With<SparseValue>().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -548,7 +548,7 @@ public sealed class QueryTests
         Entity instance = world.CreateEntity();
         world.AddPair(instance, world.IsA, baseEntity);
 
-        Query query = world.QueryBuilder().With<Inherited>().BuildUncached();
+        Query query = world.CreateQuery().With<Inherited>().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -566,7 +566,7 @@ public sealed class QueryTests
         Entity e = world.CreateEntity();
         world.Set(e, new Position { X = 1 });
         world.Set(e, new Velocity { X = 2 });
-        Query query = world.QueryBuilder().With<Position>().With<Velocity>().None().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().None().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -581,7 +581,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -596,7 +596,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {
@@ -612,7 +612,7 @@ public sealed class QueryTests
         using World world = new();
         Id position = world.Component<Position>();
         world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.QueryBuilder().With<Position>().BuildUncached();
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
 
         // The field stores a 4-byte Position; reading it as an 8-byte long is a
         // size mismatch.
@@ -629,7 +629,7 @@ public sealed class QueryTests
     {
         using World world = new();
         world.Set(world.CreateEntity(), new Inherited { Value = 1 });
-        Query query = world.QueryBuilder().With<Inherited>().BuildUncached();
+        Query query = world.CreateQuery().With<Inherited>().BuildUncached();
 
         Assert.Throws<InvalidOperationException>(() =>
         {

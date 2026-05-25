@@ -271,25 +271,25 @@ public unsafe readonly ref struct TableView
     private Span<T> FieldSpan<T>(int idx, bool isSparse, bool isShared, bool hasData)
         where T : unmanaged
     {
-        DbgIsField(idx);
-        DbgOwned(isSparse, isShared);
-        DbgHasData(hasData);
-        DbgSize<T>(idx);
+        DebugIsField(idx);
+        DebugOwned(isSparse, isShared);
+        DebugHasData(hasData);
+        DebugSize<T>(idx);
         return new Span<T>(ecs_field_w_size(_it, sizeof(T), (byte)idx), _it->count);
     }
 
     private bool TryFieldSpan<T>(int idx, bool isSparse, bool isShared, bool hasData, out Span<T> span)
         where T : unmanaged
     {
-        DbgIsField(idx);
-        DbgOwned(isSparse, isShared);
+        DebugIsField(idx);
+        DebugOwned(isSparse, isShared);
         if (!hasData)
         {
             span = default;
             return false;
         }
 
-        DbgSize<T>(idx);
+        DebugSize<T>(idx);
         span = new Span<T>(ecs_field_w_size(_it, sizeof(T), (byte)idx), _it->count);
         return true;
     }
@@ -297,10 +297,10 @@ public unsafe readonly ref struct TableView
     private ref T Field<T>(int idx, bool isSparse, bool isShared, bool hasData, int row)
         where T : unmanaged
     {
-        DbgIsField(idx);
-        DbgRow(row);
-        DbgHasData(hasData);
-        DbgSize<T>(idx);
+        DebugIsField(idx);
+        DebugRow(row);
+        DebugHasData(hasData);
+        DebugSize<T>(idx);
 
         if (isSparse)
             return ref *(T*)ecs_field_at_w_size(_it, sizeof(T), (byte)idx, row);
@@ -312,22 +312,22 @@ public unsafe readonly ref struct TableView
     private ref T SharedField<T>(int idx, bool isSparse, bool isShared, bool hasData)
         where T : unmanaged
     {
-        DbgIsField(idx);
-        DbgShared(isShared, isSparse);
-        DbgHasData(hasData);
-        DbgSize<T>(idx);
+        DebugIsField(idx);
+        DebugShared(isShared, isSparse);
+        DebugHasData(hasData);
+        DebugSize<T>(idx);
         return ref ((T*)ecs_field_w_size(_it, sizeof(T), (byte)idx))[0];
     }
 
     [Conditional("DEBUG")]
-    private static void DbgIsField(int idx)
+    private static void DebugIsField(int idx)
     {
         if (idx < 0)
             throw new InvalidOperationException("The field is not selected by this query.");
     }
 
     [Conditional("DEBUG")]
-    private static void DbgOwned(bool isSparse, bool isShared)
+    private static void DebugOwned(bool isSparse, bool isShared)
     {
         if (isSparse)
             throw new InvalidOperationException(
@@ -338,7 +338,7 @@ public unsafe readonly ref struct TableView
     }
 
     [Conditional("DEBUG")]
-    private static void DbgShared(bool isShared, bool isSparse)
+    private static void DebugShared(bool isShared, bool isSparse)
     {
         if (!isShared)
             throw new InvalidOperationException(
@@ -349,7 +349,7 @@ public unsafe readonly ref struct TableView
     }
 
     [Conditional("DEBUG")]
-    private static void DbgHasData(bool hasData)
+    private static void DebugHasData(bool hasData)
     {
         if (!hasData)
             throw new InvalidOperationException(
@@ -357,7 +357,7 @@ public unsafe readonly ref struct TableView
     }
 
     [Conditional("DEBUG")]
-    private void DbgRow(int row)
+    private void DebugRow(int row)
     {
         if ((uint)row >= (uint)_it->count)
             throw new InvalidOperationException(
@@ -365,7 +365,7 @@ public unsafe readonly ref struct TableView
     }
 
     [Conditional("DEBUG")]
-    private void DbgSize<T>(int idx) where T : unmanaged
+    private void DebugSize<T>(int idx) where T : unmanaged
     {
         int actual = (int)ecs_field_size(_it, (byte)idx);
         if (sizeof(T) != actual)
