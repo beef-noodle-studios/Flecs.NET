@@ -195,7 +195,7 @@ public unsafe static class Pair
     public static bool Has<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
-        TagResolver<TRelation, TTarget> resolver = default
+        TagResolver<TRelation, TTarget> resolver
         )
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -314,6 +314,7 @@ public unsafe static class Pair
             relation = default;
             return false;
         }
+
         var targetId = resolver.Target;
         var pairId = Ecs.MakePair(relationId, targetId);
         bool result = world.TryGet(entity, pairId, out relation);
@@ -490,7 +491,7 @@ public unsafe static class Pair
     public static bool Has<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
-        ComponentResolver<TRelation, TTarget> resolver = default
+        ComponentResolver<TRelation, TTarget> resolver
         )
         where TRelation : unmanaged
         where TTarget : unmanaged
@@ -526,7 +527,7 @@ public unsafe static class Pair
     public static ref readonly TRelation Get<TRelation, TTarget>(
         this ReadOnlyWorld world,
         Entity entity,
-        ComponentResolver<TRelation, TTarget> resolver = default
+        ComponentResolver<TRelation, TTarget> resolver
         )
         where TRelation : unmanaged
         where TTarget : unmanaged
