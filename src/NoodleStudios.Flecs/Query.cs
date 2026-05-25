@@ -38,6 +38,14 @@ public unsafe readonly struct Query
     internal ecs_query_t* Handle => _handle;
 
     /// <summary>
+    ///     The entity this query is associated with, or <see cref="Flecs.Entity.None"/>
+    ///     for one that has none. A cached query is backed by an entity, which is what
+    ///     <see cref="World.DestroyQuery(Query)"/> frees. An uncached or default query
+    ///     has none.
+    /// </summary>
+    public Entity Entity => _handle == null ? Entity.None : new Entity(_handle->entity);
+
+    /// <summary>
     ///     Begin iterating the tables matched by this query.
     /// </summary>
     public Enumerator GetEnumerator() => new(ecs_query_iter(_world, _handle));
