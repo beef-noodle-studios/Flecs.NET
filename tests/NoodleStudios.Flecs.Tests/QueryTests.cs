@@ -1326,6 +1326,46 @@ public sealed class QueryTests
         });
         world.DestroyQuery(query);
     }
+
+    [Test]
+    public void Mutating_an_in_field_after_an_or_group_throws_in_debug()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });       
+        world.Set(e, new Inherited { Value = 5 });  
+
+        // (Position OR Velocity) -> field 0; Inherited -> field 1 but term-array index 2.
+        Query query = world.CreateQuery()
+            .With<Position>().Or().With<Velocity>()
+            .With<Inherited>().In()
+            .BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpanMut<Inherited>();
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_a_writable_field_after_an_or_group_does_not_throw()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });       
+        world.Set(e, new Inherited { Value = 5 });  
+
+        Query query = world.CreateQuery()
+            .With<Position>().Or().With<Velocity>()
+            .With<Inherited>()
+            .BuildUncached();
+
+        foreach (TableView table in query)
+            _ = table.GetFieldSpanMut<Inherited>();
+        world.DestroyQuery(query);
+    }
 #endif
 
     // --- test components ---

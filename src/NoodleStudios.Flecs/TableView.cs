@@ -733,8 +733,27 @@ public unsafe readonly ref struct TableView
     [Conditional("DEBUG")]
     private void DebugWritable(int idx)
     {
-        if (ecs_field_is_readonly(_it, (byte)idx))
-            throw new InvalidOperationException(
-                "The field is read-only (e.g. an In() term). Read it with GetFieldSpan, GetField(row), or GetSharedField instead of the Mut variant.");
+        // ecs_field_is_readonly takes a FIELD index but indexes query->terms (the TERM
+        // array). OR members share a field_index, so a term after an OR group is misread.
+        // Map field->term ourselves (the first term at this field_index) and replicate the
+        // read-only test against that term. Mirrors flecs.c ecs_field_is_readonly.
+        ecs_term_t* terms = (ecs_term_t*)(&_it->query->terms);
+        int termCount = _it->query->term_count;
+        for (int t = 0; t < termCount; t++)
+        {
+            ecs_term_t* term = &terms[t];
+            if (term->field_index != idx)
+                continue;
+
+            bool isReadonly =
+                term->inout == (short)EcsIn ||
+                (term->inout == (short)EcsInOutDefault &&
+                 (!ecs_term_match_this(term) || (term->src.id & EcsSelf) == 0));
+
+            if (isReadonly)
+                throw new InvalidOperationException(
+                    "The field is read-only (e.g. an In() term). Read it with GetFieldSpan, GetField(row), or GetSharedField instead of the Mut variant.");
+            return;
+        }
     }
 }
