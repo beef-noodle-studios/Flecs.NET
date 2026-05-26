@@ -20,7 +20,7 @@ public sealed class QueryTests
         var seen = new List<int>();
         foreach (TableView table in query)
         {
-            Span<Position> positions = table.GetFieldSpan<Position>();
+            ReadOnlySpan<Position> positions = table.GetFieldSpan<Position>();
             for (int row = 0; row < table.Count; row++)
                 seen.Add(positions[row].X);
         }
@@ -44,7 +44,7 @@ public sealed class QueryTests
         var seen = new List<int>();
         foreach (TableView table in query)
         {
-            Span<Position> positions = table.GetFieldSpan<Position>();
+            ReadOnlySpan<Position> positions = table.GetFieldSpan<Position>();
             for (int row = 0; row < table.Count; row++)
                 seen.Add(positions[row].X);
         }
@@ -63,7 +63,7 @@ public sealed class QueryTests
         using (DisposableQuery query = world.CreateQuery().With<Position>().BuildDisposable())
             foreach (TableView table in query)
             {
-                Span<Position> positions = table.GetFieldSpan<Position>();
+                Span<Position> positions = table.GetFieldSpanMut<Position>();
                 for (int row = 0; row < table.Count; row++)
                     positions[row].X += 100;
             }
@@ -86,7 +86,7 @@ public sealed class QueryTests
         var seen = new List<int>();
         foreach (TableView table in query)
         {
-            Span<Position> positions = table.GetFieldSpan<Position>();
+            ReadOnlySpan<Position> positions = table.GetFieldSpan<Position>();
             for (int row = 0; row < table.Count; row++)
                 seen.Add(positions[row].X);
         }
@@ -115,14 +115,14 @@ public sealed class QueryTests
             if (table.HasField<Velocity>())
             {
                 sawPresent = true;
-                Assert.That(table.TryGetFieldSpan(out Span<Velocity> v), Is.True);
+                Assert.That(table.TryGetFieldSpan(out ReadOnlySpan<Velocity> v), Is.True);
                 for (int row = 0; row < table.Count; row++)
                     velocities.Add(v[row].X);
             }
             else
             {
                 sawAbsent = true;
-                Assert.That(table.TryGetFieldSpan(out Span<Velocity> _), Is.False);
+                Assert.That(table.TryGetFieldSpan(out ReadOnlySpan<Velocity> _), Is.False);
             }
         }
 
@@ -196,7 +196,7 @@ public sealed class QueryTests
         foreach (TableView table in query)
         {
             Assert.That(table.HasField(pair), Is.False, "a pair tag carries no data");
-            Span<Position> positions = table.GetFieldSpan<Position>();
+            ReadOnlySpan<Position> positions = table.GetFieldSpan<Position>();
             for (int row = 0; row < table.Count; row++)
                 seen.Add(positions[row].X);
         }
@@ -225,7 +225,7 @@ public sealed class QueryTests
             var values = new List<int>();
             foreach (TableView table in query)
             {
-                Span<Position> positions = table.GetFieldSpan<Position>();
+                ReadOnlySpan<Position> positions = table.GetFieldSpan<Position>();
                 for (int row = 0; row < table.Count; row++)
                     values.Add(positions[row].X);
             }
@@ -326,7 +326,7 @@ public sealed class QueryTests
             matched = true;
             Assert.That(table.HasField<Position>(), Is.True);
             Assert.That(table.HasField<Velocity>(), Is.False);
-            Assert.That(table.TryGetFieldSpan(out Span<Velocity> _), Is.False);
+            Assert.That(table.TryGetFieldSpan(out ReadOnlySpan<Velocity> _), Is.False);
         }
 
         Assert.That(matched, Is.True);
@@ -354,6 +354,68 @@ public sealed class QueryTests
 
         Assert.That(matched, Is.True);
         world.DestroyQuery(query);
+    }
+
+    // --- Read/write enforcement ---
+
+    [Test]
+    public void An_in_field_is_readable_through_the_read_only_accessors()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 7 });
+
+        Query query = world.CreateQuery().With<Position>().In().BuildUncached();
+
+        var seen = new List<int>();
+        foreach (TableView table in query)
+        {
+            ReadOnlySpan<Position> span = table.GetFieldSpan<Position>();
+            for (int row = 0; row < table.Count; row++)
+            {
+                Assert.That(table.GetField<Position>(row).X, Is.EqualTo(span[row].X));
+                seen.Add(span[row].X);
+            }
+        }
+
+        Assert.That(seen, Is.EquivalentTo(new[] { 7 }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void The_read_only_accessors_also_read_a_writable_field()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 9 });
+
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
+
+        var seen = new List<int>();
+        foreach (TableView table in query)
+        {
+            ReadOnlySpan<Position> span = table.GetFieldSpan<Position>();
+            for (int row = 0; row < table.Count; row++)
+                seen.Add(span[row].X);
+        }
+
+        Assert.That(seen, Is.EquivalentTo(new[] { 9 }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void A_writable_shared_field_can_be_mutated_through_the_mut_accessor()
+    {
+        using World world = new();
+        Entity baseEntity = world.CreateEntity();
+        world.Set(baseEntity, new Inherited { Value = 42 });
+        Entity instance = world.CreateEntity();
+        world.AddPair(instance, world.IsA, baseEntity);
+
+        using (DisposableQuery query = world.CreateQuery().With<Inherited>().BuildDisposable())
+            foreach (TableView table in query)
+                if (table.IsFieldShared<Inherited>())
+                    table.GetSharedFieldMut<Inherited>().Value += 100;
+
+        Assert.That(world.Get<Inherited>(baseEntity).Value, Is.EqualTo(142));
     }
 
     // --- Lifetime ---
@@ -649,6 +711,77 @@ public sealed class QueryTests
         {
             foreach (TableView table in query)
                 _ = table.GetSharedField<Inherited>();
+        });
+        world.DestroyQuery(query);
+    }
+
+    // --- Read/write enforcement misuse ---
+
+    [Test]
+    public void Mutably_reading_an_in_field_as_a_span_throws_in_debug()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().In().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpanMut<Position>();
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutably_reading_an_in_field_per_row_throws_in_debug()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().In().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldMut<Position>(0);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutably_reading_an_in_shared_field_throws_in_debug()
+    {
+        using World world = new();
+        Entity baseEntity = world.CreateEntity();
+        world.Set(baseEntity, new Inherited { Value = 42 });
+        Entity instance = world.CreateEntity();
+        world.AddPair(instance, world.IsA, baseEntity);
+
+        Query query = world.CreateQuery().With<Inherited>().In().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                if (table.IsFieldShared<Inherited>())
+                    _ = table.GetSharedFieldMut<Inherited>();
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutably_trying_a_present_in_field_throws_in_debug()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });
+        world.Set(e, new Velocity { X = 2 });
+
+        Query query = world.CreateQuery().With<Position>().Optional<Velocity>().In().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                if (table.HasField<Velocity>())
+                    _ = table.TryGetFieldSpanMut<Velocity>(out _);
         });
         world.DestroyQuery(query);
     }
