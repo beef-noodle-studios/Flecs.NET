@@ -418,6 +418,71 @@ public sealed class QueryTests
         Assert.That(world.Get<Inherited>(baseEntity).Value, Is.EqualTo(142));
     }
 
+    // --- Id accessor overloads ---
+
+    [Test]
+    public void Field_id_overloads_read_and_write_an_owned_field()
+    {
+        using World world = new();
+        Id position = world.Component<Position>();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 5 });
+
+        using (DisposableQuery query = world.CreateQuery().With<Position>().BuildDisposable())
+            foreach (TableView table in query)
+            {
+                ReadOnlySpan<Position> span = table.GetFieldSpan<Position>(position);
+                Assert.That(span[0].X, Is.EqualTo(5));
+                Assert.That(table.GetField<Position>(position, 0).X, Is.EqualTo(5));
+
+                table.GetFieldSpanMut<Position>(position)[0].X += 10;
+                table.GetFieldMut<Position>(position, 0).X += 100;
+            }
+
+        Assert.That(world.Get<Position>(e).X, Is.EqualTo(115));
+    }
+
+    [Test]
+    public void Shared_field_id_overloads_read_and_write()
+    {
+        using World world = new();
+        Id inherited = world.Component<Inherited>();
+        Entity baseEntity = world.CreateEntity();
+        world.Set(baseEntity, new Inherited { Value = 42 });
+        Entity instance = world.CreateEntity();
+        world.AddPair(instance, world.IsA, baseEntity);
+
+        using (DisposableQuery query = world.CreateQuery().With<Inherited>().BuildDisposable())
+            foreach (TableView table in query)
+                if (table.IsFieldShared<Inherited>())
+                {
+                    Assert.That(table.GetSharedField<Inherited>(inherited).Value, Is.EqualTo(42));
+                    table.GetSharedFieldMut<Inherited>(inherited).Value += 100;
+                }
+
+        Assert.That(world.Get<Inherited>(baseEntity).Value, Is.EqualTo(142));
+    }
+
+    [Test]
+    public void Trying_an_absent_in_optional_through_the_id_mut_overload_returns_false()
+    {
+        using World world = new();
+        Id velocity = world.Component<Velocity>();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().Optional<Velocity>().In().BuildUncached();
+
+        bool matched = false;
+        foreach (TableView table in query)
+        {
+            matched = true;
+            Assert.That(table.TryGetFieldSpanMut<Velocity>(velocity, out Span<Velocity> span), Is.False);
+            Assert.That(span.IsEmpty, Is.True);
+        }
+
+        Assert.That(matched, Is.True);
+        world.DestroyQuery(query);
+    }
+
     // --- Lifetime ---
 
     [Test]
@@ -801,6 +866,22 @@ public sealed class QueryTests
             foreach (TableView table in query)
                 if (table.HasField<Velocity>())
                     _ = table.TryGetFieldSpanMut<Velocity>(out _);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutably_reading_an_in_field_through_the_id_overload_throws_in_debug()
+    {
+        using World world = new();
+        Id position = world.Component<Position>();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().In().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpanMut<Position>(position);
         });
         world.DestroyQuery(query);
     }

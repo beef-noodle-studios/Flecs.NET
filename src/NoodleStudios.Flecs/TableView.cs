@@ -442,10 +442,10 @@ public unsafe readonly ref struct TableView
     {
         if (isSparse)
             throw new InvalidOperationException(
-                "The field is sparse. Read it per row with GetField(row).");
+                "The field is sparse. Access it per row with GetField(row)/GetFieldMut(row).");
         if (isShared)
             throw new InvalidOperationException(
-                "The field is shared on this table. Read it with GetSharedField or per row with GetField(row).");
+                "The field is shared on this table. Access it with GetSharedField/GetSharedFieldMut or per row with GetField(row)/GetFieldMut(row).");
     }
 
     [Conditional("DEBUG")]
@@ -453,10 +453,10 @@ public unsafe readonly ref struct TableView
     {
         if (!isShared)
             throw new InvalidOperationException(
-                "The field is not shared on this table. Use GetFieldSpan or GetField(row).");
+                "The field is not shared on this table. Use GetFieldSpan/GetFieldSpanMut or GetField(row)/GetFieldMut(row).");
         if (isSparse)
             throw new InvalidOperationException(
-                "The field is sparse. Read it per row with GetField(row).");
+                "The field is sparse. Access it per row with GetField(row)/GetFieldMut(row).");
     }
 
     [Conditional("DEBUG")]
@@ -487,11 +487,14 @@ public unsafe readonly ref struct TableView
     [Conditional("DEBUG")]
     private void DebugType<T>(int idx) where T : unmanaged
     {
-        ComponentId<T>.TryGetId(_it->real_world, out Id expected);
+        bool registered = ComponentId<T>.TryGetId(_it->real_world, out Id expected);
         ulong actual = ecs_get_typeid(_it->real_world, ecs_field_id(_it, (byte)idx));
-        if (expected.Value != actual)
-            throw new InvalidOperationException(
-                $"Component type '{typeof(T).Name}' does not match the matched field's type.");
+        if (expected.Value == actual)
+            return;
+
+        throw new InvalidOperationException(registered
+            ? $"Component type '{typeof(T).Name}' does not match the matched field's type."
+            : $"Component type '{typeof(T).Name}' is not registered in this world, so it cannot match the field.");
     }
 
     // A field is read-only when its term is In() (or, once traversal lands, a non-self
