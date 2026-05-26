@@ -18,8 +18,9 @@ namespace NoodleStudios.Flecs;
 ///         use <see cref="GetField{T}(int)"/> which dispatches on the shape for you.
 ///     </para>
 ///     <para>
-///         A field can also be addressed by its position (the order its term was
-///         added to the query) with the int field accessor overloads
+///         A field can also be addressed by its position (its flecs field index,
+///         OR-group members collapse to a single shared field) with the int field
+///         accessor overloads
 ///         (<see cref="GetFieldSpan{T}(int)"/> and siblings). This is the only way to
 ///         read two terms that share an id, for example the same component sourced
 ///         from the entity and from its parent. <see cref="GetFieldId(int)"/> and
@@ -323,8 +324,9 @@ public unsafe readonly ref struct TableView
 
     /// <summary>
     ///     Get the owned (dense) column at field <paramref name="field"/> as a span with
-    ///     one element per row. Fields are numbered by the order terms were added to the
-    ///     query. This is the only way to read one of two terms that share an id.
+    ///     one element per row. Fields are numbered by flecs field index, which matches
+    ///     the order terms were added except that OR-group members collapse to a single
+    ///     field. This is the only way to read one of two terms that share an id.
     /// </summary>
     /// <remarks>
     ///     Only valid for an owned field that carries data and matches 
@@ -371,7 +373,7 @@ public unsafe readonly ref struct TableView
     /// </summary>
     /// <remarks>
     ///     Field must be writable.
-    /// </summary>
+    /// </remarks>
     public bool TryGetFieldSpanMut<T>(int field, out Span<T> span) where T : unmanaged
     {
         DebugFieldBounds(field);

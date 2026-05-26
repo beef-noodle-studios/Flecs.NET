@@ -179,8 +179,8 @@ public unsafe ref struct QueryBuilder
 
     /// <summary>
     ///     Source the most recently added term from the matched entity itself. A term is
-    ///     already self-sourced by default combine with <see cref="Up()"/> as <c>.Self().Up()</c> to
-    ///     match either the entity or an ancestor.
+    ///     already self-sourced by default. Combine with <see cref="Up()"/> as
+    ///     <c>.Self().Up()</c> to match either the entity or an ancestor.
     /// </summary>
     [UnscopedRef]
     public ref QueryBuilder Self()
@@ -212,6 +212,7 @@ public unsafe ref struct QueryBuilder
     public ref QueryBuilder Up(Id relationship)
     {
         RequireTerm();
+        GuardTrav(relationship);
         ref ecs_term_t term = ref _desc.terms[_termCount - 1];
         term.src.id |= EcsUp;
         term.trav = relationship;
@@ -243,6 +244,7 @@ public unsafe ref struct QueryBuilder
     public ref QueryBuilder Cascade(Id relationship)
     {
         RequireTerm();
+        GuardTrav(relationship);
         ref ecs_term_t term = ref _desc.terms[_termCount - 1];
         term.src.id |= EcsUp | EcsCascade;
         term.trav = relationship;
@@ -268,10 +270,11 @@ public unsafe ref struct QueryBuilder
     ///     read-only.
     /// </summary>
     /// <remarks>
-    ///     A fixed source replaces the term's source, so it is mutually exclusive with the
-    ///     traversal refiners: combining <see cref="Src(Entity)"/> with
-    ///     <see cref="Self()"/>, <see cref="Up()"/>, or <see cref="Cascade()"/> produces an
-    ///     invalid term that fails to build. 
+    ///     A fixed source replaces the term's source id, clearing any flags a prior
+    ///     traversal refiner set, so <c>Src</c> should be the last source refiner on a
+    ///     term: a traversal verb called after it (e.g. <c>.Src(e).Up()</c>) composes,
+    ///     traversing up from the fixed entity, while one called before it
+    ///     (<c>.Up().Src(e)</c>) is silently overwritten.
     /// </remarks>
     [UnscopedRef]
     public ref QueryBuilder Src(Entity source)
@@ -286,7 +289,7 @@ public unsafe ref struct QueryBuilder
     ///     As <see cref="Src(Entity)"/>, but source from the id <paramref name="source"/>.
     /// </summary>
     /// <remarks>
-    ///     <paramref name="source"/> must be a plain entity id. A pair id as a source  
+    ///     <paramref name="source"/> must be a plain entity id. A pair id as a source
     ///     fails to build.
     /// </remarks>
     [UnscopedRef]
@@ -398,6 +401,15 @@ public unsafe ref struct QueryBuilder
         if (source.Value == 0)
             throw new InvalidOperationException(
                 "A query term has a zero source. Check for a failed Lookup or an Entity.None/Id.None.");
+    }
+
+    [Conditional("DEBUG")]
+    private readonly void GuardTrav(Id relationship)
+    {
+        if (relationship.Value == 0)
+            throw new InvalidOperationException(
+                "A traversal relationship is zero. Check for a failed Lookup or an Id.None. " +
+                "Use the parameterless Up()/Cascade() to default to ChildOf.");
     }
 
     private readonly void RequireTerm()

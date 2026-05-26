@@ -1296,6 +1296,17 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Traversal_with_a_zero_relationship_throws_in_debug()
+    {
+        using World world = new();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Up(Id.None));
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Cascade(Id.None));
+    }
+
+    [Test]
     public void Mutating_an_up_sourced_field_throws_in_debug()
     {
         using World world = new();
