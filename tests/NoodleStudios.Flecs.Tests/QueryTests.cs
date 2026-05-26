@@ -512,6 +512,17 @@ public sealed class QueryTests
         world.DestroyQuery(query);
     }
 
+    [Test]
+    public void Disposing_a_disposable_query_twice_does_not_double_free()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+
+        DisposableQuery query = world.CreateQuery().With<Position>().BuildDisposable();
+        query.Dispose();
+        query.Dispose();
+    }
+
     // --- Builder misuse ---
 
     [Test]
@@ -522,6 +533,29 @@ public sealed class QueryTests
     }
 
 #if DEBUG
+    // --- Builder and query misuse ---
+
+    [Test]
+    public void Adding_a_zero_id_term_throws_in_debug()
+    {
+        using World world = new();
+
+        // A zero id (Id.None, or a failed Lookup) would silently truncate the
+        // query at that term, so we must reject it instead.
+        Assert.Throws<InvalidOperationException>(() => world.CreateQuery().With(Id.None));
+    }
+
+    [Test]
+    public void Iterating_a_default_query_throws_in_debug()
+    {
+        // A default query has a null handle. Iterating it would abort in the
+        // native iterator, so GetEnumerator guards it first.
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView _ in default(Query)) { }
+        });
+    }
+
     // --- Accessor misuse ---
 
     [Test]

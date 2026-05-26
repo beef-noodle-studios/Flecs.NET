@@ -19,6 +19,8 @@ public unsafe ref struct DisposableQuery
 {
     private readonly Query _query;
 
+    private bool _disposed;
+
     internal DisposableQuery(Query query) => _query = query;
 
     /// <summary>
@@ -32,11 +34,14 @@ public unsafe ref struct DisposableQuery
     public Query.Enumerator GetEnumerator() => _query.GetEnumerator();
 
     /// <summary>
-    ///     Free the underlying query.
+    ///     Free the underlying query. 
     /// </summary>
     public void Dispose()
     {
-        if (_query.Handle != null)
-            ecs_query_fini(_query.Handle);
+        if (_disposed || _query.Handle == null)
+            return;
+
+        _disposed = true;
+        ecs_query_fini(_query.Handle);
     }
 }

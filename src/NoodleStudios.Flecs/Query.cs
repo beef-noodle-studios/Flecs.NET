@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using static Flecs.NET.Bindings.flecs;
 
@@ -16,8 +17,8 @@ namespace NoodleStudios.Flecs;
 ///     <para>
 ///         Iterate with <c>foreach</c>. Each step yields a <see cref="TableView"/>
 ///         for one matched table, over which the caller writes the inner row loop.
-///         In-place mutation of component values during iteration is safe;
-///         structural changes (adding/removing components, creating/deleting
+///         In-place mutation of component values during iteration is safe.
+///         Structural changes (adding/removing components, creating/deleting
 ///         entities) during iteration are not.
 ///     </para>
 /// </remarks>
@@ -38,17 +39,31 @@ public unsafe readonly struct Query
     internal ecs_query_t* Handle => _handle;
 
     /// <summary>
-    ///     The entity this query is associated with, or <see cref="Flecs.Entity.None"/>
-    ///     for one that has none. A cached query is backed by an entity, which is what
-    ///     <see cref="World.DestroyQuery(Query)"/> frees. An uncached or default query
-    ///     has none.
+    ///     The entity this query is backed by, or <see cref="Flecs.Entity.None"/> if it
+    ///     has none. <see cref="QueryBuilder.BuildCached"/> backs the query with an
+    ///     entity, which is what <see cref="World.DestroyQuery(Query)"/> frees. A query
+    ///     from <see cref="QueryBuilder.BuildUncached"/> or <see cref="QueryBuilder.BuildDisposable"/>,
+    ///     or a default query, has none.
     /// </summary>
     public Entity Entity => _handle == null ? Entity.None : new Entity(_handle->entity);
 
     /// <summary>
     ///     Begin iterating the tables matched by this query.
     /// </summary>
-    public Enumerator GetEnumerator() => new(ecs_query_iter(_world, _handle));
+    public Enumerator GetEnumerator()
+    {
+        GuardHandle();
+        return new(ecs_query_iter(_world, _handle));
+    }
+
+    // Iterating a null-handle query aborts in the native layer. 
+    [Conditional("DEBUG")]
+    private void GuardHandle()
+    {
+        if (_handle == null)
+            throw new InvalidOperationException(
+                "This query has no handle. Build it with Build/BuildCached/BuildUncached before iterating.");
+    }
 
     /// <summary>
     ///     Iterates the tables matched by a <see cref="Query"/>, yielding one

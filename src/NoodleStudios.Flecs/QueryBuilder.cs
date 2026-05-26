@@ -156,9 +156,10 @@ public unsafe ref struct QueryBuilder
     // --- Terminal builders ---
 
     /// <summary>
-    ///     Build a cached query: flecs maintains a cache of matched tables so
-    ///     re-iteration is cheap. Persists in the world until freed with
-    ///     <see cref="World.DestroyQuery(Query)"/>.
+    ///     Build an entity-backed query that persists in the world until freed with
+    ///     <see cref="World.DestroyQuery(Query)"/>. flecs caches the matched tables
+    ///     when the terms allow it, so re-iteration is cheap. A query with no
+    ///     cacheable terms stays entity-backed but uncached.
     /// </summary>
     /// <exception cref="InvalidOperationException">The query is invalid.</exception>
     public Query BuildCached() => Build(EcsQueryCacheAuto);
@@ -183,6 +184,7 @@ public unsafe ref struct QueryBuilder
     private void AddTerm(ulong id, short oper)
     {
         GuardTermCapacity();
+        GuardTermId(id);
         ref ecs_term_t term = ref _desc.terms[_termCount];
         term.id = id;
         term.oper = oper;
@@ -223,6 +225,16 @@ public unsafe ref struct QueryBuilder
         if (_termCount >= FLECS_TERM_COUNT_MAX)
             throw new InvalidOperationException(
                 $"A query cannot have more than {FLECS_TERM_COUNT_MAX} terms.");
+    }
+
+    // A zero id (Id.None, or a failed Lookup) reads to flecs as an uninitialized
+    // term, which silently drops it and every term after it. Reject it up front.
+    [Conditional("DEBUG")]
+    private readonly void GuardTermId(ulong id)
+    {
+        if (id == 0)
+            throw new InvalidOperationException(
+                "A query term has a zero id. Check for a failed Lookup or an Id.None.");
     }
 
     private readonly void RequireTerm()
