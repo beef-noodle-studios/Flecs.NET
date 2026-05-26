@@ -15,6 +15,8 @@ namespace NoodleStudios.Flecs;
 ///         <see cref="InOut"/>, or <see cref="None"/>. Finish with a terminal verb
 ///         that chooses the query's lifetime: <see cref="BuildCached"/>,
 ///         <see cref="BuildUncached"/>, or <see cref="BuildDisposable"/>.
+///
+///         A builder is single-use, so create a new one for each query.
 ///     </para>
 /// </remarks>
 public unsafe ref struct QueryBuilder
@@ -22,12 +24,14 @@ public unsafe ref struct QueryBuilder
     private readonly ecs_world_t* _world;
     private ecs_query_desc_t _desc;
     private int _termCount;
+    private bool _built;
 
     internal QueryBuilder(ecs_world_t* world)
     {
         _world = world;
         _desc = default;
         _termCount = 0;
+        _built = false;
     }
 
     // --- Term adders ---
@@ -183,6 +187,7 @@ public unsafe ref struct QueryBuilder
 
     private void AddTerm(ulong id, short oper)
     {
+        GuardNotBuilt();
         GuardTermCapacity();
         GuardTermId(id);
         ref ecs_term_t term = ref _desc.terms[_termCount];
@@ -193,6 +198,9 @@ public unsafe ref struct QueryBuilder
 
     private Query Build(ecs_query_cache_kind_t kind)
     {
+        GuardNotBuilt();
+        _built = true;
+
         Debug.Assert(_desc._canary == 0);
 
         fixed (ecs_query_desc_t* d = &_desc)
@@ -202,8 +210,6 @@ public unsafe ref struct QueryBuilder
             ulong entity = d->entity = kind == EcsQueryCacheAuto ? ecs_new(_world) : 0;
 
             ecs_query_t* handle = ecs_query_init(_world, d);
-
-            d->entity = 0;
 
             if (handle == null)
             {
@@ -237,8 +243,17 @@ public unsafe ref struct QueryBuilder
                 "A query term has a zero id. Check for a failed Lookup or an Id.None.");
     }
 
+    [Conditional("DEBUG")]
+    private readonly void GuardNotBuilt()
+    {
+        if (_built)
+            throw new InvalidOperationException(
+                "This builder has already built a query. Create a new builder per query.");
+    }
+
     private readonly void RequireTerm()
     {
+        GuardNotBuilt();
         if (_termCount == 0)
             throw new InvalidOperationException(
                 "Add a term with With/Without/Optional before refining it with In/Out/InOut/None.");

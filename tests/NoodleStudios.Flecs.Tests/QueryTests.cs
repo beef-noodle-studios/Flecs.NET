@@ -377,41 +377,6 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void Reusing_a_builder_builds_independent_queries()
-    {
-        using World world = new();
-        world.Set(world.CreateEntity(), new Position { X = 1 });
-
-        QueryBuilder builder = world.CreateQuery();
-        builder.With<Position>();
-
-        Query first = builder.BuildCached();
-        Assert.That(CountRows(first), Is.EqualTo(1));
-
-        // Building a second query from the same builder must not rebind or tear
-        // down the first: flecs unbinds any query already on desc.entity, so a
-        // stale entity carried over would break the first query here.
-        Query second = builder.BuildCached();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(CountRows(first), Is.EqualTo(1), "the first query still works");
-            Assert.That(CountRows(second), Is.EqualTo(1), "the second query works");
-        });
-
-        world.DestroyQuery(first);
-        world.DestroyQuery(second);
-
-        static int CountRows(Query query)
-        {
-            int total = 0;
-            foreach (TableView table in query)
-                total += table.Count;
-            return total;
-        }
-    }
-
-    [Test]
     public void DestroyQuery_frees_a_persisted_query()
     {
         using World world = new();
@@ -543,6 +508,21 @@ public sealed class QueryTests
         // A zero id (Id.None, or a failed Lookup) would silently truncate the
         // query at that term, so we must reject it instead.
         Assert.Throws<InvalidOperationException>(() => world.CreateQuery().With(Id.None));
+    }
+
+    [Test]
+    public void Reusing_a_built_builder_throws_in_debug()
+    {
+        using World world = new();
+
+        // Prohibit re-use of QueryBuilder instances
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            QueryBuilder builder = world.CreateQuery();
+            builder.With<Position>();
+            builder.BuildCached();
+            builder.BuildCached();
+        });
     }
 
     [Test]
