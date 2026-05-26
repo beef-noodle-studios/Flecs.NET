@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
@@ -34,6 +35,42 @@ public readonly struct Id(ulong value) : IEquatable<Id>
     ///     Test whether this id is a pair.
     /// </summary>
     public bool IsPair => ecs_id_is_pair(Value);
+
+    /// <summary>
+    ///     The relationship (first element) of a pair id, as a raw id without
+    ///     generation. Only valid when <see cref="IsPair"/> is true, otherwise it
+    ///     throws in Debug and is undefined behavior in Release.
+    /// </summary>
+    public Id First
+    {
+        get
+        {
+            DebugIsPair();
+            return new Id((uint)((Value & ECS_COMPONENT_MASK) >> 32));
+        }
+    }
+
+    /// <summary>
+    ///     The target (second element) of a pair id, as a raw id without
+    ///     generation. Only valid when <see cref="IsPair"/> is true, otherwise it
+    ///     throws in Debug and is undefined behavior in Release.
+    /// </summary>
+    public Id Second
+    {
+        get
+        {
+            DebugIsPair();
+            return new Id((uint)Value);
+        }
+    }
+
+    [Conditional("DEBUG")]
+    private void DebugIsPair()
+    {
+        if (!IsPair)
+            throw new InvalidOperationException(
+                "This id is not a pair, so it has no First/Second. Test with IsPair first.");
+    }
 
     public override bool Equals(object? obj) => obj is Id other && Equals(other);
     public bool Equals(Id other) => Value == other.Value;

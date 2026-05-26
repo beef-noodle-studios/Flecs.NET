@@ -12,8 +12,10 @@ namespace NoodleStudios.Flecs;
 ///         Add a term with <see cref="With{T}()"/>, <see cref="Without{T}()"/>, or
 ///         <see cref="Optional{T}()"/>, then optionally refine the most recently
 ///         added term's access with <see cref="In"/>, <see cref="Out"/>,
-///         <see cref="InOut"/>, or <see cref="None"/>, or combine it with the next
-///         term using <see cref="Or"/>. Finish with a terminal verb
+///         <see cref="InOut"/>, or <see cref="None"/>, combine it with the next
+///         term using <see cref="Or"/>, or source it from an ancestor or a fixed
+///         entity with <see cref="Self()"/>, <see cref="Up()"/>, <see cref="Cascade()"/>,
+///         <see cref="Desc()"/>, or <see cref="Src(Entity)"/>. Finish with a terminal verb
 ///         that chooses the query's lifetime: <see cref="BuildCached"/>,
 ///         <see cref="BuildUncached"/>, or <see cref="BuildDisposable"/>.
 ///
@@ -173,6 +175,129 @@ public unsafe ref struct QueryBuilder
         return ref this;
     }
 
+    // --- Traversal refiners ---
+
+    /// <summary>
+    ///     Source the most recently added term from the matched entity itself. A term is
+    ///     already self-sourced by default combine with <see cref="Up()"/> as <c>.Self().Up()</c> to
+    ///     match either the entity or an ancestor.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Self()
+    {
+        RequireTerm();
+        _desc.terms[_termCount - 1].src.id |= EcsSelf;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     Source the most recently added term from an ancestor reached by following the
+    ///     <c>ChildOf</c> relationship upward, not from the matched entity itself. Use
+    ///     <c>.Self().Up()</c> to match either the entity or an ancestor.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Up()
+    {
+        RequireTerm();
+        _desc.terms[_termCount - 1].src.id |= EcsUp;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     As <see cref="Up()"/>, but traverse <paramref name="relationship"/> upward
+    ///     instead of <c>ChildOf</c>. The relationship must be traversable for the term's
+    ///     component.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Up(Id relationship)
+    {
+        RequireTerm();
+        ref ecs_term_t term = ref _desc.terms[_termCount - 1];
+        term.src.id |= EcsUp;
+        term.trav = relationship;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     Source the most recently added term by traversing <c>ChildOf</c> upward, and
+    ///     order the matched tables so ancestors are iterated before their descendants.
+    ///     Implies <see cref="Up()"/>.
+    /// </summary>
+    /// <remarks>
+    ///     Cascade ordering is only available on a cached query (<see cref="BuildCached"/>);
+    ///     building it uncached fails.
+    /// </remarks>
+    [UnscopedRef]
+    public ref QueryBuilder Cascade()
+    {
+        RequireTerm();
+        _desc.terms[_termCount - 1].src.id |= EcsUp | EcsCascade;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     As <see cref="Cascade()"/>, but traverse <paramref name="relationship"/> upward
+    ///     instead of <c>ChildOf</c>.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Cascade(Id relationship)
+    {
+        RequireTerm();
+        ref ecs_term_t term = ref _desc.terms[_termCount - 1];
+        term.src.id |= EcsUp | EcsCascade;
+        term.trav = relationship;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     Reverse the <see cref="Cascade()"/> order so descendants are iterated before
+    ///     their ancestors. Requires <see cref="Cascade()"/> on the same term.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Desc()
+    {
+        RequireTerm();
+        _desc.terms[_termCount - 1].src.id |= EcsDesc;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     Source the most recently added term from the fixed entity
+    ///     <paramref name="source"/> for every matched row, rather than from the matched
+    ///     entity. The field reads as shared (one value for the whole table) and is
+    ///     read-only.
+    /// </summary>
+    /// <remarks>
+    ///     A fixed source replaces the term's source, so it is mutually exclusive with the
+    ///     traversal refiners: combining <see cref="Src(Entity)"/> with
+    ///     <see cref="Self()"/>, <see cref="Up()"/>, or <see cref="Cascade()"/> produces an
+    ///     invalid term that fails to build. 
+    /// </remarks>
+    [UnscopedRef]
+    public ref QueryBuilder Src(Entity source)
+    {
+        RequireTerm();
+        GuardSrc(source);
+        _desc.terms[_termCount - 1].src.id = (ulong)source | EcsIsEntity;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     As <see cref="Src(Entity)"/>, but source from the id <paramref name="source"/>.
+    /// </summary>
+    /// <remarks>
+    ///     <paramref name="source"/> must be a plain entity id. A pair id as a source  
+    ///     fails to build.
+    /// </remarks>
+    [UnscopedRef]
+    public ref QueryBuilder Src(Id source)
+    {
+        RequireTerm();
+        GuardSrc(source);
+        _desc.terms[_termCount - 1].src.id = (ulong)source | EcsIsEntity;
+        return ref this;
+    }
+
     // --- Terminal builders ---
 
     /// <summary>
@@ -267,11 +392,19 @@ public unsafe ref struct QueryBuilder
                 "This builder has already built a query. Create a new builder per query.");
     }
 
+    [Conditional("DEBUG")]
+    private readonly void GuardSrc(Id source)
+    {
+        if (source.Value == 0)
+            throw new InvalidOperationException(
+                "A query term has a zero source. Check for a failed Lookup or an Entity.None/Id.None.");
+    }
+
     private readonly void RequireTerm()
     {
         GuardNotBuilt();
         if (_termCount == 0)
             throw new InvalidOperationException(
-                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None/Or.");
+                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None/Or/Self/Up/Cascade/Desc/Src.");
     }
 }

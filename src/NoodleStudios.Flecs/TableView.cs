@@ -18,6 +18,15 @@ namespace NoodleStudios.Flecs;
 ///         use <see cref="GetField{T}(int)"/> which dispatches on the shape for you.
 ///     </para>
 ///     <para>
+///         A field can also be addressed by its position (the order its term was
+///         added to the query) with the int field accessor overloads
+///         (<see cref="GetFieldSpan{T}(int)"/> and siblings). This is the only way to
+///         read two terms that share an id, for example the same component sourced
+///         from the entity and from its parent. <see cref="GetFieldId(int)"/> and
+///         <see cref="GetFieldTarget(int)"/> report the concrete id flecs matched at a
+///         field, which answers what a wildcard or traversal term resolved to.
+///     </para>
+///     <para>
 ///         Validation mirrors flecs's own native debug/release behavior. In a Debug build,
 ///         misusing an accessor throws <see cref="InvalidOperationException"/>. These checks
 ///         compile away in Release, where the same misuse is undefined behavior,
@@ -310,6 +319,196 @@ public unsafe readonly ref struct TableView
         return idx >= 0 && isSparse;
     }
 
+    // --- Positional ---
+
+    /// <summary>
+    ///     Get the owned (dense) column at field <paramref name="field"/> as a span with
+    ///     one element per row. Fields are numbered by the order terms were added to the
+    ///     query. This is the only way to read one of two terms that share an id.
+    /// </summary>
+    /// <remarks>
+    ///     Only valid for an owned field that carries data and matches 
+    ///     <typeparamref name="T"/>'s size. A field index outside <c>[0, field count)</c>
+    ///     throws in Debug and is undefined behavior in Release.
+    /// </remarks>
+    public ReadOnlySpan<T> GetFieldSpan<T>(int field) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return new ReadOnlySpan<T>(FieldPtr<T>(field, isSparse, isShared, hasData, requireWritable: false), _it->count);
+    }
+
+    /// <summary>
+    ///     Get the writable owned (dense) column at field <paramref name="field"/> as a
+    ///     span with one element per row.
+    /// </summary>
+    /// <remarks>
+    ///     Field must be writable. 
+    /// </remarks>
+    public Span<T> GetFieldSpanMut<T>(int field) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return new Span<T>(FieldPtr<T>(field, isSparse, isShared, hasData, requireWritable: true), _it->count);
+    }
+
+    /// <summary>
+    ///     Get the read-only owned column at field <paramref name="field"/> if it is
+    ///     present with data on this table.
+    /// </summary>
+    public bool TryGetFieldSpan<T>(int field, out ReadOnlySpan<T> span) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        bool ok = TryFieldPtr<T>(field, isSparse, isShared, hasData, requireWritable: false, out T* ptr);
+        span = ok ? new ReadOnlySpan<T>(ptr, _it->count) : default;
+        return ok;
+    }
+
+    /// <summary>
+    ///     Same as <see cref="TryGetFieldSpan{T}(int, out ReadOnlySpan{T})"/>, but returns a
+    ///     writable span.
+    /// </summary>
+    /// <remarks>
+    ///     Field must be writable.
+    /// </summary>
+    public bool TryGetFieldSpanMut<T>(int field, out Span<T> span) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        bool ok = TryFieldPtr<T>(field, isSparse, isShared, hasData, requireWritable: true, out T* ptr);
+        span = ok ? new Span<T>(ptr, _it->count) : default;
+        return ok;
+    }
+
+    /// <summary>
+    ///     Get a read-only reference to the value at field <paramref name="field"/> for a
+    ///     single <paramref name="row"/>, dispatching on the field's storage shape as
+    ///     <see cref="GetField{T}(int)"/> does.
+    /// </summary>
+    /// <remarks>
+    ///     The field must be selected, carry data, and match <typeparamref name="T"/>'s size, 
+    ///     and <paramref name="row"/> must be in <c>[0, Count)</c>. 
+    /// </remarks>
+    public ref readonly T GetFieldAt<T>(int field, int row) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return ref Field<T>(field, isSparse, isShared, hasData, row, requireWritable: false);
+    }
+
+    /// <summary>
+    ///     Get a writable reference to the value at field <paramref name="field"/> for a
+    ///     single <paramref name="row"/>. Same as <see cref="GetFieldAt{T}(int, int)"/>, but
+    ///     the field must also be writable.
+    /// </summary>
+    public ref T GetFieldAtMut<T>(int field, int row) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return ref Field<T>(field, isSparse, isShared, hasData, row, requireWritable: true);
+    }
+
+    /// <summary>
+    ///     Get a read-only reference to the single shared (inherited) value at field
+    ///     <paramref name="field"/>. Same as <see cref="GetSharedField{T}()"/> but 
+    ///     addressed by index. This is how an up-sourced term's value is read.
+    /// </summary>
+    /// <remarks>
+    ///     Only valid when the field is shared on this table. An owned or sparse field, a
+    ///     field with no data, a size mismatch, or a field index outside
+    ///     <c>[0, field count)</c> throws in Debug and is undefined behavior in Release.
+    /// </remarks>
+    public ref readonly T GetSharedField<T>(int field) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return ref SharedField<T>(field, isSparse, isShared, hasData, requireWritable: false);
+    }
+
+    /// <summary>
+    ///     Get a writable reference to the single shared (inherited) value at field
+    ///     <paramref name="field"/>. Same as <see cref="GetSharedField{T}(int)"/>, but 
+    ///     the field must also be writable. A non-self source (traversal or a fixed
+    ///     <see cref="QueryBuilder.Src(Entity)"/>) is read-only and throws in Debug
+    ///     (undefined behavior in Release).
+    /// </summary>
+    public ref T GetSharedFieldMut<T>(int field) where T : unmanaged
+    {
+        DebugFieldBounds(field);
+        Shape(field, out bool isSparse, out bool isShared, out bool hasData);
+        return ref SharedField<T>(field, isSparse, isShared, hasData, requireWritable: true);
+    }
+
+    /// <summary>
+    ///     Test whether the field at <paramref name="field"/> carries readable data on
+    ///     this table. Returns false for an unmatched optional, a <c>None()</c>/excluded
+    ///     term, a tag, or a field index outside <c>[0, field count)</c>.
+    /// </summary>
+    public bool HasField(int field)
+    {
+        if ((uint)field >= (uint)_it->field_count)
+            return false;
+        Shape(field, out _, out _, out bool hasData);
+        return hasData;
+    }
+
+    /// <summary>
+    ///     Test whether the field at <paramref name="field"/> is shared (inherited from a
+    ///     base or sourced from another entity) on this table rather than owned per row.
+    ///     Returns false for a field index outside <c>[0, field count)</c>.
+    /// </summary>
+    public bool IsFieldShared(int field)
+    {
+        if ((uint)field >= (uint)_it->field_count)
+            return false;
+        Shape(field, out _, out bool isShared, out _);
+        return isShared;
+    }
+
+    /// <summary>
+    ///     Test whether the field at <paramref name="field"/> is stored in a sparse set
+    ///     rather than in the table. Returns false for a field index outside
+    ///     <c>[0, field count)</c>.
+    /// </summary>
+    public bool IsFieldSparse(int field)
+    {
+        if ((uint)field >= (uint)_it->field_count)
+            return false;
+        Shape(field, out bool isSparse, out _, out _);
+        return isSparse;
+    }
+
+    /// <summary>
+    ///     Get the concrete id flecs matched at field <paramref name="field"/> on this
+    ///     table. For a wildcard or traversal term this is the resolved id, which can
+    ///     differ per table (e.g. <c>(Likes, Apples)</c> for a <c>(Likes, *)</c> term).
+    /// </summary>
+    public Id GetFieldId(int field)
+    {
+        DebugFieldBounds(field);
+        return new Id(_it->ids[field]);
+    }
+
+    /// <summary>
+    ///     Get the alive target entity of the pair matched at field
+    ///     <paramref name="field"/>. This is the answer to "what did this wildcard relationship
+    ///     match" (e.g. <c>Apples</c> for a matched <c>(Likes, *)</c>).
+    /// </summary>
+    /// <remarks>
+    ///     Requires a concretely matched pair field: the field index must be in
+    ///     <c>[0, field count)</c> and the matched id must be a pair (both Debug throw /
+    ///     Release UB). Behavior on an unmatched-optional wildcard field, where the
+    ///     matched id may still hold a wildcard target, is undefined.
+    /// </remarks>
+    public Entity GetFieldTarget(int field)
+    {
+        DebugFieldBounds(field);
+        Id id = new(_it->ids[field]);
+        DebugFieldIsPair(id);
+        return new Entity(new Id(ecs_get_alive(_it->real_world, id.Second)));
+    }
+
     // --- Internal ---
 
     /// <summary>
@@ -330,8 +529,8 @@ public unsafe readonly ref struct TableView
     }
 
     /// <summary>
-    ///     Scan the table's matched ids for the field index. On a miss return -1 with
-    ///     everything false, computing nothing further so that no native field call
+    ///     Resolve a matched id to its field index and storage shape. On a miss return
+    ///     -1 with everything false, computing no shape so that no native field call
     ///     ever receives an invalid index (a managed -1 would marshal to byte 255 and
     ///     read out of bounds). Shape is only meaningful for a found field.
     /// </summary>
@@ -341,28 +540,44 @@ public unsafe readonly ref struct TableView
         isShared = false;
         hasData = false;
 
-        int fieldCount = _it->field_count;
-        ulong target = id.Value;
-        int idx = -1;
-        for (int i = 0; i < fieldCount; i++)
-        {
-            if (_it->ids[i] == target)
-            {
-                idx = i;
-                break;
-            }
-        }
-
+        int idx = Scan(id);
         if (idx < 0)
             return -1;
 
-        var bidx = (byte)idx;
-        uint mask = 1u << idx;
+        Shape(idx, out isSparse, out isShared, out hasData);
+        return idx;
+    }
+
+    /// <summary>
+    ///     Scan the table's matched ids for the field carrying <paramref name="id"/>,
+    ///     returning its index or -1 on a miss. Matches the first field with that id.
+    ///     A query with two terms that share an id must address the second by position.
+    /// </summary>
+    private int Scan(Id id)
+    {
+        int fieldCount = _it->field_count;
+        ulong target = id.Value;
+        for (int i = 0; i < fieldCount; i++)
+            if (_it->ids[i] == target)
+                return i;
+        return -1;
+    }
+
+    /// <summary>
+    ///     Compute the storage shape (sparse/shared/has-data) of the field at
+    ///     <paramref name="field"/>.
+    /// </summary>
+    /// <remarks>
+    ///     Out-of-range index is undefined behavior. Callers reaching here from a
+    ///     user-supplied index guard with <see cref="DebugFieldBounds"/> first.
+    /// </remarks>
+    private void Shape(int field, out bool isSparse, out bool isShared, out bool hasData)
+    {
+        var bidx = (byte)field;
+        uint mask = 1u << field;
         isSparse = (_it->row_fields & mask) != 0;
         isShared = !ecs_field_is_self(_it, bidx);
-
         hasData = (_it->query->data_fields & mask) != 0 && ecs_field_is_set(_it, bidx);
-        return idx;
     }
 
     // The Mut accessors pass requireWritable: true, which adds the read-only guard; the
@@ -476,6 +691,22 @@ public unsafe readonly ref struct TableView
     }
 
     [Conditional("DEBUG")]
+    private void DebugFieldBounds(int field)
+    {
+        if ((uint)field >= (uint)_it->field_count)
+            throw new InvalidOperationException(
+                $"Field {field} is out of range for a query with {_it->field_count} fields.");
+    }
+
+    [Conditional("DEBUG")]
+    private static void DebugFieldIsPair(Id id)
+    {
+        if (!id.IsPair)
+            throw new InvalidOperationException(
+                "The field is not a pair, so it has no target. GetFieldTarget is for a matched pair field, e.g. a (Likes, *) wildcard match.");
+    }
+
+    [Conditional("DEBUG")]
     private void DebugSize<T>(int idx) where T : unmanaged
     {
         int actual = (int)ecs_field_size(_it, (byte)idx);
@@ -497,8 +728,6 @@ public unsafe readonly ref struct TableView
             : $"Component type '{typeof(T).Name}' is not registered in this world, so it cannot match the field.");
     }
 
-    // A field is read-only when its term is In() (or, once traversal lands, a non-self
-    // source). The Mut accessors forbid handing out a writable view of it.
     [Conditional("DEBUG")]
     private void DebugWritable(int idx)
     {
