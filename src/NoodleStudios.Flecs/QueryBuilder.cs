@@ -12,7 +12,8 @@ namespace NoodleStudios.Flecs;
 ///         Add a term with <see cref="With{T}()"/>, <see cref="Without{T}()"/>, or
 ///         <see cref="Optional{T}()"/>, then optionally refine the most recently
 ///         added term's access with <see cref="In"/>, <see cref="Out"/>,
-///         <see cref="InOut"/>, or <see cref="None"/>. Finish with a terminal verb
+///         <see cref="InOut"/>, or <see cref="None"/>, or combine it with the next
+///         term using <see cref="Or"/>. Finish with a terminal verb
 ///         that chooses the query's lifetime: <see cref="BuildCached"/>,
 ///         <see cref="BuildUncached"/>, or <see cref="BuildDisposable"/>.
 ///
@@ -157,6 +158,21 @@ public unsafe ref struct QueryBuilder
         return ref this;
     }
 
+    // --- Operator refiners ---
+
+    /// <summary>
+    ///     Combine the most recently added term with the next one as an OR group so an
+    ///     entity matches if it has either. Chain further <see cref="Or"/> calls to extend
+    ///     the group. OR members of differing types collapse to a single dataless field.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder Or()
+    {
+        RequireTerm();
+        _desc.terms[_termCount - 1].oper = (short)EcsOr;
+        return ref this;
+    }
+
     // --- Terminal builders ---
 
     /// <summary>
@@ -256,6 +272,6 @@ public unsafe ref struct QueryBuilder
         GuardNotBuilt();
         if (_termCount == 0)
             throw new InvalidOperationException(
-                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None.");
+                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None/Or.");
     }
 }

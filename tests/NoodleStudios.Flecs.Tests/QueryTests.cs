@@ -136,6 +136,30 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Or_matches_entities_that_have_either_term()
+    {
+        using World world = new();
+        Entity onlyPosition = world.CreateEntity();
+        Entity onlyVelocity = world.CreateEntity();
+        Entity both = world.CreateEntity();
+        Entity neither = world.CreateEntity();
+        world.Set(onlyPosition, new Position { X = 1 });
+        world.Set(onlyVelocity, new Velocity { X = 2 });
+        world.Set(both, new Position { X = 3 });
+        world.Set(both, new Velocity { X = 4 });
+
+        Query query = world.CreateQuery().With<Position>().Or().With<Velocity>().BuildUncached();
+
+        var matched = new List<ulong>();
+        foreach (TableView table in query)
+            foreach (Entity entity in table.Entities)
+                matched.Add(entity);
+
+        Assert.That(matched, Is.EquivalentTo(new[] { (ulong)onlyPosition, (ulong)onlyVelocity, (ulong)both }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
     public void Count_and_entities_report_the_table_rows()
     {
         using World world = new();
@@ -622,6 +646,13 @@ public sealed class QueryTests
     {
         using World world = new();
         Assert.Throws<InvalidOperationException>(() => world.CreateQuery().In());
+    }
+
+    [Test]
+    public void Or_before_adding_a_term_throws()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Or());
     }
 
 #if DEBUG
