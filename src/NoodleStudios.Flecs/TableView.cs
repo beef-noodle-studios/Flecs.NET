@@ -374,6 +374,7 @@ public unsafe readonly ref struct TableView
         DebugOwned(isSparse, isShared);
         DebugHasData(hasData);
         DebugSize<T>(idx);
+        DebugType<T>(idx);
         if (requireWritable)
             DebugWritable(idx);
         return (T*)ecs_field_w_size(_it, sizeof(T), (byte)idx);
@@ -391,6 +392,7 @@ public unsafe readonly ref struct TableView
         }
 
         DebugSize<T>(idx);
+        DebugType<T>(idx);
         if (requireWritable)
             DebugWritable(idx);
         ptr = (T*)ecs_field_w_size(_it, sizeof(T), (byte)idx);
@@ -404,6 +406,7 @@ public unsafe readonly ref struct TableView
         DebugRow(row);
         DebugHasData(hasData);
         DebugSize<T>(idx);
+        DebugType<T>(idx);
         if (requireWritable)
             DebugWritable(idx);
 
@@ -421,6 +424,7 @@ public unsafe readonly ref struct TableView
         DebugShared(isShared, isSparse);
         DebugHasData(hasData);
         DebugSize<T>(idx);
+        DebugType<T>(idx);
         if (requireWritable)
             DebugWritable(idx);
         return ref ((T*)ecs_field_w_size(_it, sizeof(T), (byte)idx))[0];
@@ -478,6 +482,16 @@ public unsafe readonly ref struct TableView
         if (sizeof(T) != actual)
             throw new InvalidOperationException(
                 $"Component type '{typeof(T).Name}' is {sizeof(T)} bytes but the field stores {actual} bytes.");
+    }
+
+    [Conditional("DEBUG")]
+    private void DebugType<T>(int idx) where T : unmanaged
+    {
+        ComponentId<T>.TryGetId(_it->real_world, out Id expected);
+        ulong actual = ecs_get_typeid(_it->real_world, ecs_field_id(_it, (byte)idx));
+        if (expected.Value != actual)
+            throw new InvalidOperationException(
+                $"Component type '{typeof(T).Name}' does not match the matched field's type.");
     }
 
     // A field is read-only when its term is In() (or, once traversal lands, a non-self

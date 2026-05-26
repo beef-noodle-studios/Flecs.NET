@@ -701,6 +701,25 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Reading_a_field_as_a_wrong_same_sized_type_throws_in_debug()
+    {
+        using World world = new();
+        Id position = world.Component<Position>();
+        world.Component<Velocity>();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
+
+        // Position and Velocity are both 4 bytes, so only the type-identity 
+        // check catches reading the Position field as Velocity.
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpan<Velocity>(position);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
     public void Reading_an_owned_field_as_shared_throws_in_debug()
     {
         using World world = new();
