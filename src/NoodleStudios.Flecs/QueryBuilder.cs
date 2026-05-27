@@ -14,8 +14,8 @@ namespace NoodleStudios.Flecs;
 ///         added term's access with <see cref="In"/>, <see cref="Out"/>,
 ///         <see cref="InOut"/>, or <see cref="None"/>, combine it with the next
 ///         term using <see cref="Or"/>, or source it from an ancestor or a fixed
-///         entity with <see cref="Self()"/>, <see cref="Up()"/>, <see cref="Cascade()"/>,
-///         <see cref="Desc()"/>, or <see cref="Src(Entity)"/>. Finish with a terminal verb
+///         entity with <see cref="Self()"/>, <see cref="Up()"/>, <see cref="UpAncestorsFirst()"/>,
+///         <see cref="UpDescendantsFirst()"/>, or <see cref="Source(Entity)"/>. Finish with a terminal verb
 ///         that chooses the query's lifetime: <see cref="BuildCached"/>,
 ///         <see cref="BuildUncached"/>, or <see cref="BuildDisposable"/>.
 ///
@@ -220,16 +220,18 @@ public unsafe ref struct QueryBuilder
     }
 
     /// <summary>
-    ///     Source the most recently added term by traversing <c>ChildOf</c> upward, and
-    ///     order the matched tables so ancestors are iterated before their descendants.
-    ///     Implies <see cref="Up()"/>.
+    ///     Source the most recently added term by traversing <c>ChildOf</c> upward, like
+    ///     <see cref="Up()"/>, and additionally order the matched tables by hierarchy
+    ///     depth so an entity's ancestors are always iterated before the entity itself
+    ///     (flecs calls this breadth-first iteration). The textbook use is a transform
+    ///     system, where each parent must be processed before its children.
     /// </summary>
     /// <remarks>
-    ///     Cascade ordering is only available on a cached query (<see cref="BuildCached"/>);
-    ///     building it uncached fails.
+    ///     This ordering is only available on a cached query (<see cref="BuildCached"/>).
+    ///     Building it uncached fails.
     /// </remarks>
     [UnscopedRef]
-    public ref QueryBuilder Cascade()
+    public ref QueryBuilder UpAncestorsFirst()
     {
         RequireTerm();
         _desc.terms[_termCount - 1].src.id |= EcsUp | EcsCascade;
@@ -237,11 +239,11 @@ public unsafe ref struct QueryBuilder
     }
 
     /// <summary>
-    ///     As <see cref="Cascade()"/>, but traverse <paramref name="relationship"/> upward
-    ///     instead of <c>ChildOf</c>.
+    ///     As <see cref="UpAncestorsFirst()"/>, but traverse <paramref name="relationship"/>
+    ///     upward instead of <c>ChildOf</c>. The relationship must be traversable.
     /// </summary>
     [UnscopedRef]
-    public ref QueryBuilder Cascade(Id relationship)
+    public ref QueryBuilder UpAncestorsFirst(Id relationship)
     {
         RequireTerm();
         GuardTrav(relationship);
@@ -252,14 +254,34 @@ public unsafe ref struct QueryBuilder
     }
 
     /// <summary>
-    ///     Reverse the <see cref="Cascade()"/> order so descendants are iterated before
-    ///     their ancestors. Requires <see cref="Cascade()"/> on the same term.
+    ///     The reverse of <see cref="UpAncestorsFirst()"/>: source by traversing <c>ChildOf</c>
+    ///     upward and order the matched tables so an entity's descendants are iterated
+    ///     before the entity itself.
     /// </summary>
+    /// <remarks>
+    ///     This ordering is only available on a cached query (<see cref="BuildCached"/>).
+    ///     Building it uncached fails.
+    /// </remarks>
     [UnscopedRef]
-    public ref QueryBuilder Desc()
+    public ref QueryBuilder UpDescendantsFirst()
     {
         RequireTerm();
-        _desc.terms[_termCount - 1].src.id |= EcsDesc;
+        _desc.terms[_termCount - 1].src.id |= EcsUp | EcsCascade | EcsDesc;
+        return ref this;
+    }
+
+    /// <summary>
+    ///     As <see cref="UpDescendantsFirst()"/>, but traverse <paramref name="relationship"/>
+    ///     upward instead of <c>ChildOf</c>. The relationship must be traversable.
+    /// </summary>
+    [UnscopedRef]
+    public ref QueryBuilder UpDescendantsFirst(Id relationship)
+    {
+        RequireTerm();
+        GuardTrav(relationship);
+        ref ecs_term_t term = ref _desc.terms[_termCount - 1];
+        term.src.id |= EcsUp | EcsCascade | EcsDesc;
+        term.trav = relationship;
         return ref this;
     }
 
@@ -267,17 +289,18 @@ public unsafe ref struct QueryBuilder
     ///     Source the most recently added term from the fixed entity
     ///     <paramref name="source"/> for every matched row, rather than from the matched
     ///     entity. The field reads as shared (one value for the whole table) and is
-    ///     read-only.
+    ///     read-only by default. Mark the term <see cref="InOut()"/> or <see cref="Out()"/>
+    ///     to write through it.
     /// </summary>
     /// <remarks>
-    ///     A fixed source replaces the term's source id, clearing any flags a prior
-    ///     traversal refiner set, so <c>Src</c> should be the last source refiner on a
-    ///     term: a traversal verb called after it (e.g. <c>.Src(e).Up()</c>) composes,
-    ///     traversing up from the fixed entity, while one called before it
-    ///     (<c>.Up().Src(e)</c>) is silently overwritten.
+    ///     A fixed source overwrites the term's source id, clearing any flags a prior
+    ///     traversal refiner (e.g. <see cref="Self()"/> or <see cref="Up()"/>) set, so call
+    ///     <c>Source</c> before any traversal verb on the same term: a verb called after it
+    ///     (e.g. <c>.Source(e).Up()</c>) composes, traversing up from the fixed entity,
+    ///     while one called before it (<c>.Up().Source(e)</c>) is silently overwritten.
     /// </remarks>
     [UnscopedRef]
-    public ref QueryBuilder Src(Entity source)
+    public ref QueryBuilder Source(Entity source)
     {
         RequireTerm();
         GuardSrc(source);
@@ -286,14 +309,14 @@ public unsafe ref struct QueryBuilder
     }
 
     /// <summary>
-    ///     As <see cref="Src(Entity)"/>, but source from the id <paramref name="source"/>.
+    ///     As <see cref="Source(Entity)"/>, but source from the id <paramref name="source"/>.
     /// </summary>
     /// <remarks>
     ///     <paramref name="source"/> must be a plain entity id. A pair id as a source
     ///     fails to build.
     /// </remarks>
     [UnscopedRef]
-    public ref QueryBuilder Src(Id source)
+    public ref QueryBuilder Source(Id source)
     {
         RequireTerm();
         GuardSrc(source);
@@ -409,7 +432,7 @@ public unsafe ref struct QueryBuilder
         if (relationship.Value == 0)
             throw new InvalidOperationException(
                 "A traversal relationship is zero. Check for a failed Lookup or an Id.None. " +
-                "Use the parameterless Up()/Cascade() to default to ChildOf.");
+                "Use a parameterless Up()/UpAncestorsFirst()/UpDescendantsFirst() to default to ChildOf.");
     }
 
     private readonly void RequireTerm()
@@ -417,6 +440,6 @@ public unsafe ref struct QueryBuilder
         GuardNotBuilt();
         if (_termCount == 0)
             throw new InvalidOperationException(
-                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None/Or/Self/Up/Cascade/Desc/Src.");
+                "Add a term with With/Without/Optional before refining it with In/Out/InOut/None/Or/Self/Up/UpAncestorsFirst/UpDescendantsFirst/Source.");
     }
 }

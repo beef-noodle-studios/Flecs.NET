@@ -432,8 +432,9 @@ public unsafe readonly ref struct TableView
     ///     Get a writable reference to the single shared (inherited) value at field
     ///     <paramref name="field"/>. Same as <see cref="GetSharedField{T}(int)"/>, but 
     ///     the field must also be writable. A non-self source (traversal or a fixed
-    ///     <see cref="QueryBuilder.Src(Entity)"/>) is read-only and throws in Debug
-    ///     (undefined behavior in Release).
+    ///     <see cref="QueryBuilder.Source(Entity)"/>) is read-only by default. Mark the term
+    ///     <see cref="QueryBuilder.InOut()"/> or <see cref="QueryBuilder.Out()"/> to write
+    ///     through it. Otherwise this throws in Debug (undefined behavior in Release).
     /// </summary>
     public ref T GetSharedFieldMut<T>(int field) where T : unmanaged
     {

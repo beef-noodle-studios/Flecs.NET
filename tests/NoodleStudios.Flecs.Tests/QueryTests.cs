@@ -723,7 +723,7 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void Cascade_orders_ancestors_before_descendants()
+    public void UpAncestorsFirst_orders_ancestors_before_descendants()
     {
         using World world = new();
         Entity root = world.CreateEntity();
@@ -735,11 +735,11 @@ public sealed class QueryTests
         world.Set(leaf, new Position { X = 2 });
         world.AddChildOf(leaf, mid);
 
-        // Term 0 is each node's own Position. Term 1 cascades the parent's Position so
-        // the cache is ordered shallow-to-deep. Optional lets the root match.
+        // Term 0 is each node's own Position. Term 1 sources the parent's Position with
+        // UpAncestorsFirst so the cache is ordered shallow-to-deep. Optional lets the root match.
         Query query = world.CreateQuery()
             .With<Position>()
-            .Optional<Position>().Cascade()
+            .Optional<Position>().UpAncestorsFirst()
             .BuildCached();
 
         var order = new List<int>();
@@ -755,7 +755,7 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void Desc_reverses_the_cascade_order()
+    public void UpDescendantsFirst_orders_descendants_before_ancestors()
     {
         using World world = new();
         Entity root = world.CreateEntity();
@@ -769,7 +769,7 @@ public sealed class QueryTests
 
         Query query = world.CreateQuery()
             .With<Position>()
-            .Optional<Position>().Cascade().Desc()
+            .Optional<Position>().UpDescendantsFirst()
             .BuildCached();
 
         var order = new List<int>();
@@ -780,20 +780,20 @@ public sealed class QueryTests
                 order.Add(self[row].X);
         }
 
-        Assert.That(order, Is.EqualTo(new[] { 2, 1, 0 }), "Desc reverses the cascade order");
+        Assert.That(order, Is.EqualTo(new[] { 2, 1, 0 }), "UpDescendantsFirst reverses the UpAncestorsFirst order");
         world.DestroyQuery(query);
     }
 
     [Test]
-    public void Cascade_on_an_uncached_query_fails_to_build()
+    public void UpAncestorsFirst_on_an_uncached_query_fails_to_build()
     {
         using World world = new();
         Assert.Throws<InvalidOperationException>(() =>
-            world.CreateQuery().With<Position>().Optional<Position>().Cascade().BuildUncached());
+            world.CreateQuery().With<Position>().Optional<Position>().UpAncestorsFirst().BuildUncached());
     }
 
     [Test]
-    public void Src_reads_a_fixed_entity_for_every_row()
+    public void Source_reads_a_fixed_entity_for_every_row()
     {
         using World world = new();
         Entity cfg = world.CreateEntity();
@@ -804,7 +804,7 @@ public sealed class QueryTests
         Entity b = world.CreateEntity();
         world.Set(b, new Position { X = 2 });
 
-        Query query = world.CreateQuery().With<Position>().With<Velocity>().Src(cfg).BuildUncached();
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).BuildUncached();
 
         var positions = new List<int>();
         foreach (TableView table in query)
@@ -982,9 +982,9 @@ public sealed class QueryTests
         {
             Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Self());
             Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Up());
-            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Cascade());
-            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Desc());
-            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Src(world.CreateEntity()));
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().UpAncestorsFirst());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().UpDescendantsFirst());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Source(world.CreateEntity()));
         });
     }
 
@@ -1288,11 +1288,11 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void Src_with_a_zero_entity_throws_in_debug()
+    public void Source_with_a_zero_entity_throws_in_debug()
     {
         using World world = new();
         Assert.Throws<InvalidOperationException>(() =>
-            world.CreateQuery().With<Position>().Src(Entity.None));
+            world.CreateQuery().With<Position>().Source(Entity.None));
     }
 
     [Test]
@@ -1303,7 +1303,7 @@ public sealed class QueryTests
         Assert.Throws<InvalidOperationException>(() =>
             world.CreateQuery().With<Position>().Up(Id.None));
         Assert.Throws<InvalidOperationException>(() =>
-            world.CreateQuery().With<Position>().Cascade(Id.None));
+            world.CreateQuery().With<Position>().UpAncestorsFirst(Id.None));
     }
 
     [Test]
