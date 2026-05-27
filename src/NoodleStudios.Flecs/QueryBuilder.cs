@@ -436,6 +436,10 @@ public unsafe ref struct QueryBuilder
             throw new InvalidOperationException(
                 "A traversal relationship is zero. Check for a failed Lookup or an Id.None. " +
                 "Use a parameterless Up()/UpAncestorsFirst()/UpDescendantsFirst() to default to ChildOf.");
+        if (!ecs_has_id(_world, relationship, EcsTraversable))
+            throw new InvalidOperationException(
+                "A traversal relationship must have the Traversable trait. Mark it [Traversable] " +
+                "(ChildOf, IsA, and DependsOn already are).");
     }
 
     private readonly void RequireTerm()

@@ -1319,6 +1319,29 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Traversal_with_a_non_traversable_relationship_throws_in_debug()
+    {
+        using World world = new();
+        Entity plain = world.CreateEntity();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Up(plain));
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().UpAncestorsFirst(plain));
+    }
+
+    [Test]
+    public void Traversal_with_a_traversable_relationship_is_allowed()
+    {
+        using World world = new();
+        Entity rel = world.CreateEntity();
+        world.Add(rel, EcsTraversable);
+
+        Query query = world.CreateQuery().With<Position>().Up(rel).BuildUncached();
+        world.DestroyQuery(query);
+    }
+
+    [Test]
     public void Mutating_an_up_sourced_field_throws_in_debug()
     {
         using World world = new();
