@@ -1296,6 +1296,18 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Source_with_a_pair_id_throws_in_debug()
+    {
+        using World world = new();
+        Entity likes = world.CreateEntity();
+        Entity apples = world.CreateEntity();
+        Id pair = world.Pair(likes, apples);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Source(pair));
+    }
+
+    [Test]
     public void Traversal_with_a_zero_relationship_throws_in_debug()
     {
         using World world = new();

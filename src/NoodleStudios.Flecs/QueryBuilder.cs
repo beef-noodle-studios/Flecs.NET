@@ -312,8 +312,8 @@ public unsafe ref struct QueryBuilder
     ///     As <see cref="Source(Entity)"/>, but source from the id <paramref name="source"/>.
     /// </summary>
     /// <remarks>
-    ///     <paramref name="source"/> must be a plain entity id. A pair id as a source
-    ///     fails to build.
+    ///     <paramref name="source"/> must be a plain entity id, not a pair. Passing a
+    ///     pair throws in Debug and is undefined behavior in Release.
     /// </remarks>
     [UnscopedRef]
     public ref QueryBuilder Source(Id source)
@@ -424,6 +424,9 @@ public unsafe ref struct QueryBuilder
         if (source.Value == 0)
             throw new InvalidOperationException(
                 "A query term has a zero source. Check for a failed Lookup or an Entity.None/Id.None.");
+        if (source.IsPair)
+            throw new InvalidOperationException(
+                "A query term source must be a plain entity, not a pair.");
     }
 
     [Conditional("DEBUG")]
