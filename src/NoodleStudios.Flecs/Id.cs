@@ -64,6 +64,26 @@ public readonly struct Id(ulong value) : IEquatable<Id>
         }
     }
 
+    /// <summary>
+    ///     If this id is a pair, split it into its <see cref="First"/> relationship
+    ///     and <see cref="Second"/> target. Returns false for a non-pair id, with
+    ///     both outputs set to <see cref="None"/> (unlike <see cref="First"/> and
+    ///     <see cref="Second"/>, which throw on a non-pair).
+    /// </summary>
+    public bool TryGetPair(out Id first, out Id second)
+    {
+        if (!IsPair)
+        {
+            first = None;
+            second = None;
+            return false;
+        }
+
+        first = new Id((uint)((Value & ECS_COMPONENT_MASK) >> 32));
+        second = new Id((uint)Value);
+        return true;
+    }
+
     [Conditional("DEBUG")]
     private void DebugIsPair()
     {
