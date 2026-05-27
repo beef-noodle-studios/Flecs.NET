@@ -136,6 +136,30 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void Or_matches_entities_that_have_either_term()
+    {
+        using World world = new();
+        Entity onlyPosition = world.CreateEntity();
+        Entity onlyVelocity = world.CreateEntity();
+        Entity both = world.CreateEntity();
+        Entity neither = world.CreateEntity();
+        world.Set(onlyPosition, new Position { X = 1 });
+        world.Set(onlyVelocity, new Velocity { X = 2 });
+        world.Set(both, new Position { X = 3 });
+        world.Set(both, new Velocity { X = 4 });
+
+        Query query = world.CreateQuery().With<Position>().Or().With<Velocity>().BuildUncached();
+
+        var matched = new List<ulong>();
+        foreach (TableView table in query)
+            foreach (Entity entity in table.Entities)
+                matched.Add(entity);
+
+        Assert.That(matched, Is.EquivalentTo(new[] { (ulong)onlyPosition, (ulong)onlyVelocity, (ulong)both }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
     public void Count_and_entities_report_the_table_rows()
     {
         using World world = new();
@@ -615,6 +639,374 @@ public sealed class QueryTests
         query.Dispose();
     }
 
+    // --- Traversal and positional reads ---
+
+    [Test]
+    public void Up_reads_an_inherited_component_from_the_parent()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Velocity { X = 7 });
+        Entity child = world.CreateEntity();
+        world.Set(child, new Position { X = 3 });
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Up().BuildUncached();
+
+        bool matchedChild = false;
+        foreach (TableView table in query)
+        {
+            Assert.That(table.IsFieldShared<Position>(), Is.False, "Position is owned by the child");
+            Assert.That(table.IsFieldShared<Velocity>(), Is.True, "Velocity is inherited from the parent");
+            Assert.That(table.GetSharedField<Velocity>().X, Is.EqualTo(7));
+            for (int row = 0; row < table.Count; row++)
+            {
+                matchedChild = true;
+                Assert.That(table.GetField<Position>(row).X, Is.EqualTo(3));
+            }
+        }
+
+        Assert.That(matchedChild, Is.True, "the child matches via up-sourced Velocity");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Up_only_does_not_match_the_owner_itself()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Velocity { X = 7 });
+        Entity child = world.CreateEntity();
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Velocity>().Up().BuildUncached();
+
+        var matched = new List<Entity>();
+        foreach (TableView table in query)
+            foreach (Entity e in table.Entities)
+                matched.Add(e);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(matched, Does.Contain(child), "the child matches via its parent's Velocity");
+            Assert.That(matched, Does.Not.Contain(parent), "up-only excludes the owner of Velocity");
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Self_or_up_matches_owner_and_descendants()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Velocity { X = 7 });
+        Entity child = world.CreateEntity();
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Velocity>().Self().Up().BuildUncached();
+
+        var owned = new List<Entity>();
+        var shared = new List<Entity>();
+        foreach (TableView table in query)
+        {
+            bool isShared = table.IsFieldShared<Velocity>();
+            foreach (Entity e in table.Entities)
+                (isShared ? shared : owned).Add(e);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(owned, Does.Contain(parent), "the parent owns Velocity (self)");
+            Assert.That(shared, Does.Contain(child), "the child inherits Velocity (up)");
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void UpAncestorsFirst_orders_ancestors_before_descendants()
+    {
+        using World world = new();
+        Entity root = world.CreateEntity();
+        world.Set(root, new Position { X = 0 });
+        Entity mid = world.CreateEntity();
+        world.Set(mid, new Position { X = 1 });
+        world.AddChildOf(mid, root);
+        Entity leaf = world.CreateEntity();
+        world.Set(leaf, new Position { X = 2 });
+        world.AddChildOf(leaf, mid);
+
+        // Term 0 is each node's own Position. Term 1 sources the parent's Position with
+        // UpAncestorsFirst so the cache is ordered shallow-to-deep. Optional lets the root match.
+        Query query = world.CreateQuery()
+            .With<Position>()
+            .Optional<Position>().UpAncestorsFirst()
+            .BuildCached();
+
+        var order = new List<int>();
+        foreach (TableView table in query)
+        {
+            ReadOnlySpan<Position> self = table.GetFieldSpan<Position>(0);
+            for (int row = 0; row < table.Count; row++)
+                order.Add(self[row].X);
+        }
+
+        Assert.That(order, Is.EqualTo(new[] { 0, 1, 2 }), "tables are visited shallow-to-deep");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void UpDescendantsFirst_orders_descendants_before_ancestors()
+    {
+        using World world = new();
+        Entity root = world.CreateEntity();
+        world.Set(root, new Position { X = 0 });
+        Entity mid = world.CreateEntity();
+        world.Set(mid, new Position { X = 1 });
+        world.AddChildOf(mid, root);
+        Entity leaf = world.CreateEntity();
+        world.Set(leaf, new Position { X = 2 });
+        world.AddChildOf(leaf, mid);
+
+        Query query = world.CreateQuery()
+            .With<Position>()
+            .Optional<Position>().UpDescendantsFirst()
+            .BuildCached();
+
+        var order = new List<int>();
+        foreach (TableView table in query)
+        {
+            ReadOnlySpan<Position> self = table.GetFieldSpan<Position>(0);
+            for (int row = 0; row < table.Count; row++)
+                order.Add(self[row].X);
+        }
+
+        Assert.That(order, Is.EqualTo(new[] { 2, 1, 0 }), "UpDescendantsFirst reverses the UpAncestorsFirst order");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void UpAncestorsFirst_on_an_uncached_query_fails_to_build()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Optional<Position>().UpAncestorsFirst().BuildUncached());
+    }
+
+    [Test]
+    public void UpDescendantsFirst_on_an_uncached_query_fails_to_build()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Optional<Position>().UpDescendantsFirst().BuildUncached());
+    }
+
+    [Test]
+    public void Source_reads_a_fixed_entity_for_every_row()
+    {
+        using World world = new();
+        Entity cfg = world.CreateEntity();
+        world.Set(cfg, new Velocity { X = 99 });
+
+        Entity a = world.CreateEntity();
+        world.Set(a, new Position { X = 1 });
+        Entity b = world.CreateEntity();
+        world.Set(b, new Position { X = 2 });
+
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).BuildUncached();
+
+        var positions = new List<int>();
+        foreach (TableView table in query)
+        {
+            Assert.That(table.IsFieldShared<Velocity>(), Is.True, "the fixed source reads as shared");
+            Assert.That(table.GetSharedField<Velocity>().X, Is.EqualTo(99));
+            ReadOnlySpan<Position> ps = table.GetFieldSpan<Position>();
+            for (int row = 0; row < table.Count; row++)
+                positions.Add(ps[row].X);
+        }
+
+        Assert.That(positions, Is.EquivalentTo(new[] { 1, 2 }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void A_fixed_source_marked_InOut_is_writable_and_mutates_the_source()
+    {
+        using World world = new();
+        Entity cfg = world.CreateEntity();
+        world.Set(cfg, new Velocity { X = 1 });
+        Entity a = world.CreateEntity();
+        world.Set(a, new Position { X = 0 });
+
+        // Velocity is sourced from the fixed cfg entity. A fixed source is read-only by
+        // default, but marking the term InOut() makes it writable.
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).InOut().BuildUncached();
+
+        foreach (TableView table in query)
+            table.GetSharedFieldMut<Velocity>(1).X = 42;
+
+        Assert.That(world.Get<Velocity>(cfg).X, Is.EqualTo(42),
+            "writing through an InOut fixed source mutates the source entity");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_a_default_access_fixed_source_throws_in_debug()
+    {
+        using World world = new();
+        Entity cfg = world.CreateEntity();
+        world.Set(cfg, new Velocity { X = 1 });
+        Entity a = world.CreateEntity();
+        world.Set(a, new Position { X = 0 });
+
+        // No InOut(): a fixed source is read-only by default.
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetSharedFieldMut<Velocity>(1);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Up_with_an_explicit_relationship_traverses_it()
+    {
+        using World world = new();
+        Entity baseEntity = world.CreateEntity();
+        world.Set(baseEntity, new Inherited { Value = 5 });
+        world.Set(baseEntity, new Position { X = 0 });
+
+        Entity instance = world.CreateEntity();
+        world.AddPair(instance, world.IsA, baseEntity);
+        world.Set(instance, new Position { X = 1 });
+
+        Query query = world.CreateQuery().With<Position>().With<Inherited>().Up(world.IsA).BuildUncached();
+
+        var matched = new List<Entity>();
+        foreach (TableView table in query)
+        {
+            Assert.That(table.IsFieldShared<Inherited>(), Is.True, "Inherited comes from the base via IsA");
+            Assert.That(table.GetSharedField<Inherited>().Value, Is.EqualTo(5));
+            foreach (Entity e in table.Entities)
+                matched.Add(e);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(matched, Does.Contain(instance), "the instance matches via IsA-up");
+            Assert.That(matched, Does.Not.Contain(baseEntity), "up-only excludes the base itself");
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Reads_self_and_parent_transform_end_to_end()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Position { X = 100 });
+        Entity child = world.CreateEntity();
+        world.Set(child, new Position { X = 1 });
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Position>().With<Position>().Up().BuildUncached();
+
+        bool matched = false;
+        foreach (TableView table in query)
+        {
+            matched = true;
+            Assert.That(table.IsFieldShared(0), Is.False, "field 0 is the child's own Position");
+            Assert.That(table.IsFieldShared(1), Is.True, "field 1 is the parent's Position (up)");
+            Assert.That(table.GetFieldSpan<Position>(0)[0].X, Is.EqualTo(1));
+            Assert.That(table.GetSharedField<Position>(1).X, Is.EqualTo(100));
+        }
+
+        Assert.That(matched, Is.True, "the child reads its own and its parent's Position");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Positional_accessors_read_a_duplicate_id_query()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Position { X = 42 });
+        Entity child = world.CreateEntity();
+        world.Set(child, new Position { X = 7 });
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Position>().With<Position>().Up().BuildUncached();
+
+        bool matched = false;
+        foreach (TableView table in query)
+        {
+            matched = true;
+
+            Assert.That(table.IsFieldShared<Position>(), Is.False, "type-resolution picks field 0 (owned)");
+            Assert.That(table.GetFieldSpan<Position>()[0].X, Is.EqualTo(7), "type-resolved span is field 0");
+            Assert.That(table.GetSharedField<Position>(1).X, Is.EqualTo(42), "field 1 is the parent's");
+        }
+
+        Assert.That(matched, Is.True);
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void GetFieldId_and_GetFieldTarget_discover_a_wildcard_match()
+    {
+        using World world = new();
+        Entity likes = world.CreateEntity();
+        Entity apples = world.CreateEntity();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });
+        world.AddPair(e, likes, apples);
+
+        Query query = world.CreateQuery().With<Position>().With(likes, EcsWildcard).BuildUncached();
+
+        bool matched = false;
+        foreach (TableView table in query)
+        {
+            matched = true;
+            Assert.That(table.GetFieldId(1), Is.EqualTo(world.Pair(likes, apples)),
+                "the wildcard resolved to (likes, apples)");
+            Assert.That(table.GetFieldTarget(1), Is.EqualTo(apples), "the matched target is apples");
+        }
+
+        Assert.That(matched, Is.True);
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Positional_predicates_match_typed_and_are_range_safe()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });
+        world.Set(e, new SparseValue { Value = 2 });
+
+        Query query = world.CreateQuery().With<Position>().With<SparseValue>().BuildUncached();
+
+        bool matched = false;
+        foreach (TableView table in query)
+        {
+            matched = true;
+            Assert.That(table.HasField(0), Is.EqualTo(table.HasField<Position>()));
+            Assert.That(table.IsFieldShared(0), Is.EqualTo(table.IsFieldShared<Position>()));
+            Assert.That(table.IsFieldSparse(0), Is.EqualTo(table.IsFieldSparse<Position>()));
+            Assert.That(table.HasField(1), Is.EqualTo(table.HasField<SparseValue>()));
+            Assert.That(table.IsFieldSparse(1), Is.EqualTo(table.IsFieldSparse<SparseValue>()));
+            Assert.That(table.IsFieldSparse(1), Is.True, "SparseValue is a sparse field");
+
+            Assert.That(table.HasField(99), Is.False);
+            Assert.That(table.IsFieldShared(99), Is.False);
+            Assert.That(table.IsFieldSparse(99), Is.False);
+        }
+
+        Assert.That(matched, Is.True);
+        world.DestroyQuery(query);
+    }
+
     // --- Builder misuse ---
 
     [Test]
@@ -622,6 +1014,27 @@ public sealed class QueryTests
     {
         using World world = new();
         Assert.Throws<InvalidOperationException>(() => world.CreateQuery().In());
+    }
+
+    [Test]
+    public void Or_before_adding_a_term_throws()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Or());
+    }
+
+    [Test]
+    public void Traversal_verb_before_a_term_throws()
+    {
+        using World world = new();
+        Assert.Multiple(() =>
+        {
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Self());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Up());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().UpAncestorsFirst());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().UpDescendantsFirst());
+            Assert.Throws<InvalidOperationException>(() => world.CreateQuery().Source(world.CreateEntity()));
+        });
     }
 
 #if DEBUG
@@ -883,6 +1296,158 @@ public sealed class QueryTests
             foreach (TableView table in query)
                 _ = table.GetFieldSpanMut<Position>(position);
         });
+        world.DestroyQuery(query);
+    }
+
+    // --- Positional and traversal misuse ---
+
+    [Test]
+    public void Positional_field_index_out_of_range_throws_in_debug()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpan<Position>(99);
+        });
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpan<Position>(-1);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void GetFieldTarget_on_a_non_pair_field_throws_in_debug()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position { X = 1 });
+        Query query = world.CreateQuery().With<Position>().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldTarget(0);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Source_with_a_zero_entity_throws_in_debug()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Source(Entity.None));
+    }
+
+    [Test]
+    public void Source_with_a_pair_id_throws_in_debug()
+    {
+        using World world = new();
+        Entity likes = world.CreateEntity();
+        Entity apples = world.CreateEntity();
+        Id pair = world.Pair(likes, apples);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Source(pair));
+    }
+
+    [Test]
+    public void Traversal_with_a_zero_relationship_throws_in_debug()
+    {
+        using World world = new();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Up(Id.None));
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().UpAncestorsFirst(Id.None));
+    }
+
+    [Test]
+    public void Traversal_with_a_non_traversable_relationship_throws_in_debug()
+    {
+        using World world = new();
+        Entity plain = world.CreateEntity();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Up(plain));
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().UpAncestorsFirst(plain));
+    }
+
+    [Test]
+    public void Traversal_with_a_traversable_relationship_is_allowed()
+    {
+        using World world = new();
+        Entity rel = world.CreateEntity();
+        world.Add(rel, EcsTraversable);
+
+        Query query = world.CreateQuery().With<Position>().Up(rel).BuildUncached();
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_an_up_sourced_field_throws_in_debug()
+    {
+        using World world = new();
+        Entity parent = world.CreateEntity();
+        world.Set(parent, new Velocity { X = 7 });
+        Entity child = world.CreateEntity();
+        world.Set(child, new Position { X = 1 });
+        world.AddChildOf(child, parent);
+
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Up().BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                if (table.IsFieldShared(1))
+                    _ = table.GetSharedFieldMut<Velocity>(1);
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_an_in_field_after_an_or_group_throws_in_debug()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });       
+        world.Set(e, new Inherited { Value = 5 });  
+
+        // (Position OR Velocity) -> field 0; Inherited -> field 1 but term-array index 2.
+        Query query = world.CreateQuery()
+            .With<Position>().Or().With<Velocity>()
+            .With<Inherited>().In()
+            .BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetFieldSpanMut<Inherited>();
+        });
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_a_writable_field_after_an_or_group_does_not_throw()
+    {
+        using World world = new();
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });       
+        world.Set(e, new Inherited { Value = 5 });  
+
+        Query query = world.CreateQuery()
+            .With<Position>().Or().With<Velocity>()
+            .With<Inherited>()
+            .BuildUncached();
+
+        foreach (TableView table in query)
+            _ = table.GetFieldSpanMut<Inherited>();
         world.DestroyQuery(query);
     }
 #endif
