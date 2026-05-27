@@ -793,6 +793,14 @@ public sealed class QueryTests
     }
 
     [Test]
+    public void UpDescendantsFirst_on_an_uncached_query_fails_to_build()
+    {
+        using World world = new();
+        Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery().With<Position>().Optional<Position>().UpDescendantsFirst().BuildUncached());
+    }
+
+    [Test]
     public void Source_reads_a_fixed_entity_for_every_row()
     {
         using World world = new();
@@ -817,6 +825,47 @@ public sealed class QueryTests
         }
 
         Assert.That(positions, Is.EquivalentTo(new[] { 1, 2 }));
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void A_fixed_source_marked_InOut_is_writable_and_mutates_the_source()
+    {
+        using World world = new();
+        Entity cfg = world.CreateEntity();
+        world.Set(cfg, new Velocity { X = 1 });
+        Entity a = world.CreateEntity();
+        world.Set(a, new Position { X = 0 });
+
+        // Velocity is sourced from the fixed cfg entity. A fixed source is read-only by
+        // default, but marking the term InOut() makes it writable.
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).InOut().BuildUncached();
+
+        foreach (TableView table in query)
+            table.GetSharedFieldMut<Velocity>(1).X = 42;
+
+        Assert.That(world.Get<Velocity>(cfg).X, Is.EqualTo(42),
+            "writing through an InOut fixed source mutates the source entity");
+        world.DestroyQuery(query);
+    }
+
+    [Test]
+    public void Mutating_a_default_access_fixed_source_throws_in_debug()
+    {
+        using World world = new();
+        Entity cfg = world.CreateEntity();
+        world.Set(cfg, new Velocity { X = 1 });
+        Entity a = world.CreateEntity();
+        world.Set(a, new Position { X = 0 });
+
+        // No InOut(): a fixed source is read-only by default.
+        Query query = world.CreateQuery().With<Position>().With<Velocity>().Source(cfg).BuildUncached();
+
+        Assert.Throws<InvalidOperationException>(() =>
+        {
+            foreach (TableView table in query)
+                _ = table.GetSharedFieldMut<Velocity>(1);
+        });
         world.DestroyQuery(query);
     }
 
