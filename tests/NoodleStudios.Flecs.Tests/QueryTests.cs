@@ -849,6 +849,7 @@ public sealed class QueryTests
         world.DestroyQuery(query);
     }
 
+#if DEBUG
     [Test]
     public void Mutating_a_default_access_fixed_source_throws_in_debug()
     {
@@ -868,6 +869,7 @@ public sealed class QueryTests
         });
         world.DestroyQuery(query);
     }
+#endif
 
     [Test]
     public void Up_with_an_explicit_relationship_traverses_it()
