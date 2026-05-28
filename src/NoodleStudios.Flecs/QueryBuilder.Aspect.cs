@@ -13,11 +13,13 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : IAspect, allows r
 {
     private QueryBuilder _inner;
     private readonly int[] _slotToTermIndex;
+    private readonly AspectDescriptor _descriptor;
 
-    internal QueryBuilder(QueryBuilder inner, int[] slotToTermIndex)
+    internal QueryBuilder(QueryBuilder inner, int[] slotToTermIndex, AspectDescriptor descriptor)
     {
         _inner = inner;
         _slotToTermIndex = slotToTermIndex;
+        _descriptor = descriptor;
     }
 
     /// <inheritdoc cref="QueryBuilder.With{T}()"/>
@@ -192,13 +194,13 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : IAspect, allows r
 
     /// <inheritdoc cref="QueryBuilder.BuildCached"/>
     public Query<TAspect> BuildCached() =>
-        new(_inner.BuildCached(), _slotToTermIndex);
+        new(_inner.BuildCached(), _slotToTermIndex, _descriptor);
 
     /// <inheritdoc cref="QueryBuilder.BuildUncached"/>
     public Query<TAspect> BuildUncached() =>
-        new(_inner.BuildUncached(), _slotToTermIndex);
+        new(_inner.BuildUncached(), _slotToTermIndex, _descriptor);
 
     /// <inheritdoc cref="QueryBuilder.BuildDisposable"/>
     public DisposableQuery<TAspect> BuildDisposable() =>
-        new(new Query<TAspect>(_inner.BuildUncached(), _slotToTermIndex));
+        new(new Query<TAspect>(_inner.BuildUncached(), _slotToTermIndex, _descriptor));
 }

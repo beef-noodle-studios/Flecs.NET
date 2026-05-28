@@ -47,7 +47,7 @@ public unsafe readonly partial struct World
 
         ApplyStructAttributes(ref inner, registry, typeof(TAspect));
 
-        return new QueryBuilder<TAspect>(inner, slotToTerm);
+        return new QueryBuilder<TAspect>(inner, slotToTerm, descriptor);
     }
 
     private static void SeedAccessor(

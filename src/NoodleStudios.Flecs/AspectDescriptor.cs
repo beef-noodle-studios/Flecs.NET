@@ -87,6 +87,12 @@ internal readonly struct AspectSlot(int slotIndex, int offset, AspectSlotKind ki
     public AspectSlotKind Kind { get; } = kind;
 
     /// <summary>
+    ///     The declaring field's name. Used in diagnostics that point back at the
+    ///     specific aspect field that triggered them.
+    /// </summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>
     ///     The component type of a <see cref="AspectSlotKind.ComponentAccessor"/>
     ///     slot. Null on every other slot kind.
     /// </summary>
@@ -184,12 +190,12 @@ internal sealed class AspectDescriptor
             if (fieldType == typeof(Entity))
             {
                 EnsureNoAccessorAttributes(aspectType, field, "Entity");
-                slots.Add(new AspectSlot(i, offset, AspectSlotKind.Entity));
+                slots.Add(new AspectSlot(i, offset, AspectSlotKind.Entity) { Name = field.Name });
             }
             else if (fieldType == typeof(TableView))
             {
                 EnsureNoAccessorAttributes(aspectType, field, "TableView");
-                slots.Add(new AspectSlot(i, offset, AspectSlotKind.TableView));
+                slots.Add(new AspectSlot(i, offset, AspectSlotKind.TableView) { Name = field.Name });
             }
             else if (fieldType.IsByRef)
             {
@@ -319,6 +325,7 @@ internal sealed class AspectDescriptor
 
         return new AspectSlot(slotIndex, offset, AspectSlotKind.ComponentAccessor)
         {
+            Name = field.Name,
             ComponentType = elementType,
             RefKind = refKind,
             Optional = optional,

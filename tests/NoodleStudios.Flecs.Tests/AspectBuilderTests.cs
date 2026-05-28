@@ -22,7 +22,7 @@ public sealed unsafe class AspectBuilderTests
         try
         {
             ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
-            int[] map = query.SlotToTermIndex;
+            int[] map = query.SlotToTermIndex.ToArray();
 
             Assert.Multiple(() =>
             {
@@ -52,7 +52,7 @@ public sealed unsafe class AspectBuilderTests
         try
         {
             ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
-            int[] map = query.SlotToTermIndex;
+            int[] map = query.SlotToTermIndex.ToArray();
             int termCount = query.Untyped.Handle->term_count;
 
             Assert.Multiple(() =>
@@ -81,7 +81,7 @@ public sealed unsafe class AspectBuilderTests
         try
         {
             ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
-            int[] map = query.SlotToTermIndex;
+            int[] map = query.SlotToTermIndex.ToArray();
 
             int selfTerm = map[0];
             int upTerm = map[1];
@@ -111,7 +111,7 @@ public sealed unsafe class AspectBuilderTests
         try
         {
             ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
-            int[] map = query.SlotToTermIndex;
+            int[] map = query.SlotToTermIndex.ToArray();
 
             int upTerm = map[0];
             int selfTerm = map[1];
