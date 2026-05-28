@@ -17,7 +17,7 @@ namespace NoodleStudios.Flecs;
 ///     </para>
 ///     <para>
 ///         The interface itself carries no members. Aspect shape is enforced by 
-///         analyzer rules at compile time and by <c>AspectPlan</c> at runtime.
+///         analyzer rules at compile time and by <c>AspectDescriptor</c> at runtime.
 ///     </para>
 /// </remarks>
 public interface IAspect
