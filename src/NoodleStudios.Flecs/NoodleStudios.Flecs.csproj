@@ -11,4 +11,10 @@
     <ProjectReference Include="..\Flecs.NET.Bindings\Flecs.NET.Bindings.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>NoodleStudios.Flecs.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>

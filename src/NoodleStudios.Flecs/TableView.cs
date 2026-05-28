@@ -223,7 +223,7 @@ public unsafe readonly ref struct TableView
     /// <remarks>
     ///     Only valid when the field is shared on this table. An owned or sparse
     ///     field, a field with no data, or a size mismatch is misuse (Debug throw /
-    ///     Release UB). Use <see cref="IsFieldShared{T}()"/> to test the shape
+    ///     Release UB). Use <see cref="HasSharedField{T}()"/> to test the shape
     ///     first when a query can match both owned and inherited tables, or
     ///     <see cref="GetSharedFieldMut{T}()"/> to write.
     /// </remarks>
@@ -285,36 +285,56 @@ public unsafe readonly ref struct TableView
     }
 
     /// <summary>
-    ///     Test whether component <typeparamref name="T"/> is shared (inherited from
-    ///     a base) on this table rather than owned per row. Returns false for a
-    ///     field the query does not select.
+    ///     Test whether this table has a shared (inherited or sourced) binding
+    ///     for component <typeparamref name="T"/>. Returns false for a field
+    ///     the query does not select, a field that is self-bound on this table,
+    ///     or an unmatched optional.
     /// </summary>
-    public bool IsFieldShared<T>() where T : unmanaged
+    public bool HasSharedField<T>() where T : unmanaged
     {
         int idx = Resolve<T>(out _, out bool isShared, out _);
         return idx >= 0 && isShared;
     }
 
-    /// <inheritdoc cref="IsFieldShared{T}()"/>
-    public bool IsFieldShared(Id id)
+    /// <inheritdoc cref="HasSharedField{T}()"/>
+    public bool HasSharedField(Id id)
     {
         int idx = Resolve(id, out _, out bool isShared, out _);
         return idx >= 0 && isShared;
     }
 
     /// <summary>
-    ///     Test whether component <typeparamref name="T"/> is stored in a sparse set
-    ///     on this table rather than in the table itself. Returns false for a field
-    ///     the query does not select.
+    ///     Test whether this table has a self-owned binding for component
+    ///     <typeparamref name="T"/>. Returns false for a field the query does
+    ///     not select, a field that is shared (inherited or sourced) on this
+    ///     table, or an unmatched optional.
     /// </summary>
-    public bool IsFieldSparse<T>() where T : unmanaged
+    public bool HasSelfField<T>() where T : unmanaged
+    {
+        int idx = Resolve<T>(out _, out bool isShared, out _);
+        return idx >= 0 && !isShared;
+    }
+
+    /// <inheritdoc cref="HasSelfField{T}()"/>
+    public bool HasSelfField(Id id)
+    {
+        int idx = Resolve(id, out _, out bool isShared, out _);
+        return idx >= 0 && !isShared;
+    }
+
+    /// <summary>
+    ///     Test whether this table has a sparse binding for component
+    ///     <typeparamref name="T"/>, stored in a sparse set rather than in the
+    ///     table. Returns false for a field the query does not select.
+    /// </summary>
+    public bool HasSparseField<T>() where T : unmanaged
     {
         int idx = Resolve<T>(out bool isSparse, out _, out _);
         return idx >= 0 && isSparse;
     }
 
-    /// <inheritdoc cref="IsFieldSparse{T}()"/>
-    public bool IsFieldSparse(Id id)
+    /// <inheritdoc cref="HasSparseField{T}()"/>
+    public bool HasSparseField(Id id)
     {
         int idx = Resolve(id, out bool isSparse, out _, out _);
         return idx >= 0 && isSparse;
@@ -512,6 +532,129 @@ public unsafe readonly ref struct TableView
         return new Entity(new Id(ecs_get_alive(_it->real_world, id.Second)));
     }
 
+    /// <summary>
+    ///     Get the entity that supplied the data for field <paramref name="field"/>
+    ///     on this table, for example the ancestor an <c>Up</c>-traversed term
+    ///     resolved to or the singleton a fixed-source term reads from. Returns
+    ///     <see cref="Entity.None"/> for a self-bound field or when the query has
+    ///     no shared sources at all (the underlying sources array is null).
+    /// </summary>
+    /// <remarks>
+    ///     The field index must be in <c>[0, field count)</c>, otherwise this
+    ///     throws in Debug and is undefined behavior in Release.
+    /// </remarks>
+    public Entity GetFieldSource(int field)
+    {
+        DebugFieldBounds(field);
+        ulong* sources = _it->sources;
+        return sources == null ? Entity.None : new Entity(new Id(sources[field]));
+    }
+
+    /// <summary>
+    ///     Get the alive target entity of the pair matched at the field that
+    ///     binds component <typeparamref name="T"/>, applying
+    ///     <paramref name="mode"/> when more than one slot could match.
+    ///     Returns <see cref="Entity.None"/> if no slot for
+    ///     <typeparamref name="T"/> matches the requested shape.
+    /// </summary>
+    /// <remarks>
+    ///     The matched id at the resolved slot must be a pair, otherwise this
+    ///     throws in Debug and is undefined behavior in Release.
+    /// </remarks>
+    public Entity GetFieldTarget<T>(FieldScanMode mode = FieldScanMode.FirstMatch) where T : unmanaged
+    {
+        int idx = FindField<T>(mode);
+        return idx < 0 ? Entity.None : GetFieldTarget(idx);
+    }
+
+    /// <inheritdoc cref="GetFieldTarget{T}(FieldScanMode)"/>
+    public Entity GetFieldTarget(Id id, FieldScanMode mode = FieldScanMode.FirstMatch)
+    {
+        int idx = FindField(id, mode);
+        return idx < 0 ? Entity.None : GetFieldTarget(idx);
+    }
+
+    /// <summary>
+    ///     Get the entity that supplied the data for component
+    ///     <typeparamref name="T"/>'s field, applying <paramref name="mode"/>
+    ///     when more than one slot could match. Returns <see cref="Entity.None"/>
+    ///     for a self-bound resolution, when the query has no shared sources
+    ///     at all, or when no slot for <typeparamref name="T"/> matches the
+    ///     requested shape.
+    /// </summary>
+    public Entity GetFieldSource<T>(FieldScanMode mode = FieldScanMode.FirstMatch) where T : unmanaged
+    {
+        int idx = FindField<T>(mode);
+        return idx < 0 ? Entity.None : GetFieldSource(idx);
+    }
+
+    /// <inheritdoc cref="GetFieldSource{T}(FieldScanMode)"/>
+    public Entity GetFieldSource(Id id, FieldScanMode mode = FieldScanMode.FirstMatch)
+    {
+        int idx = FindField(id, mode);
+        return idx < 0 ? Entity.None : GetFieldSource(idx);
+    }
+
+    // --- Field lookup by id / type ---
+
+    /// <summary>
+    ///     Find the field index for component <typeparamref name="T"/> on this
+    ///     table, applying <paramref name="mode"/> when more than one slot
+    ///     could match. Returns -1 if the component is not registered in this
+    ///     world, no slot carries its id, or no slot matches the requested
+    ///     shape.
+    /// </summary>
+    /// <remarks>
+    ///     Use the returned index with any of the positional accessors
+    ///     (<see cref="GetFieldSpan{T}(int)"/>, <see cref="GetFieldAt{T}(int, int)"/>,
+    ///     <see cref="GetSharedField{T}(int)"/>, and friends) to read the slot
+    ///     in the shape the mode selected for. The type-keyed accessors on
+    ///     <see cref="TableView"/> always use <see cref="FieldScanMode.FirstMatch"/>.
+    /// </remarks>
+    public int FindField<T>(FieldScanMode mode = FieldScanMode.FirstMatch) where T : unmanaged
+    {
+        if (!ComponentId<T>.TryGetId(_it->real_world, out Id id))
+            return -1;
+        return FindField(id, mode);
+    }
+
+    /// <inheritdoc cref="FindField{T}(FieldScanMode)"/>
+    public int FindField(Id id, FieldScanMode mode = FieldScanMode.FirstMatch)
+    {
+        int fieldCount = _it->field_count;
+        ulong target = id.Value;
+        int firstMatch = -1;
+
+        for (int i = 0; i < fieldCount; i++)
+        {
+            if (_it->ids[i] != target)
+                continue;
+
+            bool isSelf = ecs_field_is_self(_it, (byte)i);
+            switch (mode)
+            {
+                case FieldScanMode.FirstMatch:
+                    return i;
+                case FieldScanMode.SelfOnly:
+                    if (isSelf)
+                        return i;
+                    break;
+                case FieldScanMode.SharedOnly:
+                    if (!isSelf)
+                        return i;
+                    break;
+                case FieldScanMode.PreferSelf:
+                    if (isSelf)
+                        return i;
+                    if (firstMatch < 0)
+                        firstMatch = i;
+                    break;
+            }
+        }
+
+        return mode == FieldScanMode.PreferSelf ? firstMatch : -1;
+    }
+
     // --- Internal ---
 
     /// <summary>
@@ -543,27 +686,12 @@ public unsafe readonly ref struct TableView
         isShared = false;
         hasData = false;
 
-        int idx = Scan(id);
+        int idx = FindField(id);
         if (idx < 0)
             return -1;
 
         Shape(idx, out isSparse, out isShared, out hasData);
         return idx;
-    }
-
-    /// <summary>
-    ///     Scan the table's matched ids for the field carrying <paramref name="id"/>,
-    ///     returning its index or -1 on a miss. Matches the first field with that id.
-    ///     A query with two terms that share an id must address the second by position.
-    /// </summary>
-    private int Scan(Id id)
-    {
-        int fieldCount = _it->field_count;
-        ulong target = id.Value;
-        for (int i = 0; i < fieldCount; i++)
-            if (_it->ids[i] == target)
-                return i;
-        return -1;
     }
 
     /// <summary>
