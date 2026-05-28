@@ -1,7 +1,6 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 
-#pragma warning disable CS9265 // never ref-assignedf - aspect fields are inspected only via reflection / unsafe binding
 #pragma warning disable CS0649 // component fields never assigned 
 
 namespace NoodleStudios.Flecs.Tests;
@@ -457,4 +456,3 @@ public sealed class AspectDescriptorTests
 }
 
 #pragma warning restore CS0649
-#pragma warning restore CS9265

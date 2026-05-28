@@ -2,7 +2,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using static Flecs.NET.Bindings.flecs;
 
-#pragma warning disable CS9265 // aspect ref fields are bound via unsafe binding, not C# assignment
 #pragma warning disable CS0649 // component fields never assigned
 
 namespace NoodleStudios.Flecs.Tests;
@@ -306,4 +305,3 @@ public sealed unsafe class AspectBuilderTests
 }
 
 #pragma warning restore CS0649
-#pragma warning restore CS9265
