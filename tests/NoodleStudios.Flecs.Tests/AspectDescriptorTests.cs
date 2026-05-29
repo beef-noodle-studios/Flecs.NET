@@ -233,6 +233,14 @@ public sealed class AspectDescriptorTests
     }
 
     [Test]
+    public void Ref_to_managed_value_type_throws()
+    {
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
+            AspectDescriptor.Build(typeof(RefToManagedValueField), 8))!;
+        Assert.That(ex.Message, Does.Contain("managed references"));
+    }
+
+    [Test]
     public void Ref_to_Entity_throws()
     {
         InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
@@ -404,6 +412,14 @@ public sealed class AspectDescriptorTests
     internal ref struct RefToEntityField : IAspect
     {
         public ref Entity NotAllowed;
+    }
+
+    internal struct ManagedValueComponent { public string Name; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal ref struct RefToManagedValueField : IAspect
+    {
+        public ref ManagedValueComponent NotAllowed;
     }
 
     [StructLayout(LayoutKind.Sequential)]

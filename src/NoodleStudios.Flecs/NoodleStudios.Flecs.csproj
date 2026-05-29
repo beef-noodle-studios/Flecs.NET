@@ -9,6 +9,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Flecs.NET.Bindings\Flecs.NET.Bindings.csproj" />
+    <ProjectReference Include="..\NoodleStudios.Flecs.Analyzers\NoodleStudios.Flecs.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
