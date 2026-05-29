@@ -129,7 +129,7 @@ public unsafe readonly partial struct World
             for (int i = 0; i < components.Length; i++)
             {
                 Id id = ResolveComponentId(registry, components[i]);
-                inner.With(id);
+                inner.With(id).None();
                 if (i < components.Length - 1)
                     inner.Or();
             }

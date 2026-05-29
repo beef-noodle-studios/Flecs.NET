@@ -279,6 +279,42 @@ public sealed unsafe class AspectBuilderTests
         }
     }
 
+    [Test]
+    public void Single_member_Any_lowers_to_a_dataless_matching_term()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position());
+        world.Set(world.CreateEntity(), new MarkerA());
+
+        Query<SingleAnyAspect> query = world.CreateQuery<SingleAnyAspect>().BuildUncached();
+        try
+        {
+            ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
+
+            int accessorTerm = query.SlotToTermIndex[0];
+            int anyTerm = accessorTerm == 0 ? 1 : 0;
+            ulong dataFields = query.Untyped.Handle->data_fields;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(query.Untyped.Handle->term_count, Is.EqualTo(2),
+                    "one accessor + one [Any] member");
+                Assert.That(terms[accessorTerm].field_index, Is.EqualTo(0),
+                    "the accessor still owns field 0");
+                Assert.That(terms[anyTerm].inout, Is.EqualTo((short)EcsInOutNone),
+                    "the single [Any] member is dataless, not a readable required term");
+                Assert.That((dataFields >> terms[anyTerm].field_index) & 1u, Is.Zero,
+                    "the [Any] member claims no data field");
+                Assert.That((dataFields >> terms[accessorTerm].field_index) & 1u, Is.Not.Zero,
+                    "the accessor still carries data");
+            });
+        }
+        finally
+        {
+            world.DestroyQuery(query.Untyped);
+        }
+    }
+
     // --- Test components and aspect shapes ---
 
     internal struct Position { public int X; public int Y; }
@@ -304,6 +340,13 @@ public sealed unsafe class AspectBuilderTests
     {
         public ref readonly Position Position;
         public ref Velocity Velocity;
+    }
+
+    [Any(typeof(MarkerA))]
+    [StructLayout(LayoutKind.Sequential)]
+    internal ref struct SingleAnyAspect : IAspect
+    {
+        public ref readonly Position Position;
     }
 
     [StructLayout(LayoutKind.Sequential)]
