@@ -104,7 +104,10 @@ public sealed class ComponentTraitTests
     [Transitive]
     [Exclusive]
     [IsTrait]
-    private struct MarkerBag;
+    private struct MarkerBag
+    {
+        public int Value;
+    }
 
     [OnInstantiate(Instantiate.Inherit)]
     private struct InheritedComponent;
@@ -128,10 +131,16 @@ public sealed class ComponentTraitTests
     private struct CycleB;
 
     [Sparse]
-    private struct MultiWorldSparse;
+    private struct MultiWorldSparse
+    {
+        public int Value;
+    }
 
     [Sparse]
     [Union]
-    private struct SparseUnionConflict;
+    private struct SparseUnionConflict
+    {
+        public int Value;
+    }
 }
 

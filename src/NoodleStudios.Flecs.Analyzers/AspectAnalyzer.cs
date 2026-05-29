@@ -69,6 +69,24 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
         isEnabledByDefault: true,
         description: "An aspect holds ref fields into row storage that must not escape the iteration, so it must be a ref struct.");
 
+    internal static readonly DiagnosticDescriptor TagAccessor = new(
+        "NSFA007",
+        "Tag cannot be an aspect accessor field",
+        "Aspect field '{0}' is a ref to '{1}', which has no instance fields and registers as a zero-storage tag. A tag carries no data to bind.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "A tag is matching-only. It has no readable data, so it cannot be bound as a component accessor. Match it with a [With] attribute on the aspect, or test it with Has, instead of declaring an accessor field.");
+
+    internal static readonly DiagnosticDescriptor SparseTag = new(
+        "NSFA008",
+        "Tag cannot be marked [Sparse]",
+        "Type '{0}' has no instance fields and registers as a zero-storage tag, so it cannot be marked [Sparse]. Sparse storage requires component data.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Flecs can only place a component with data in a sparse set. A field-less tag has no storage, so marking it [Sparse] aborts at registration. Add a field to make it a real component, or remove [Sparse].");
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } =
         ImmutableArray.Create(
             MissingSequentialLayout,
@@ -76,7 +94,9 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             MisplacedAccessorAttribute,
             DuplicateTerm,
             ConflictingSourcing,
-            NotRefStruct);
+            NotRefStruct,
+            TagAccessor,
+            SparseTag);
 
     public override void Initialize(AnalysisContext context)
     {
@@ -112,6 +132,8 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
         private readonly INamedTypeSymbol _upAncestorsFirst;
         private readonly INamedTypeSymbol _upDescendantsFirst;
         private readonly INamedTypeSymbol _singleton;
+
+        private readonly INamedTypeSymbol? _sparse;
         private readonly ImmutableArray<INamedTypeSymbol> _accessorOnlyAttributes;
         private readonly ImmutableArray<INamedTypeSymbol> _sourcingAttributes;
 
@@ -125,7 +147,8 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             INamedTypeSymbol up,
             INamedTypeSymbol upAncestorsFirst,
             INamedTypeSymbol upDescendantsFirst,
-            INamedTypeSymbol singleton)
+            INamedTypeSymbol singleton,
+            INamedTypeSymbol? sparse)
         {
             _aspect = aspect;
             _entity = entity;
@@ -137,6 +160,7 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             _upAncestorsFirst = upAncestorsFirst;
             _upDescendantsFirst = upDescendantsFirst;
             _singleton = singleton;
+            _sparse = sparse;
             _accessorOnlyAttributes = ImmutableArray.Create(
                 optional, self, up, upAncestorsFirst, upDescendantsFirst, singleton);
             _sourcingAttributes = ImmutableArray.Create(
@@ -161,6 +185,7 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             INamedTypeSymbol? upDescendantsFirst = compilation.GetTypeByMetadataName(
                 "NoodleStudios.Flecs.UpDescendantsFirstAttribute");
             INamedTypeSymbol? singleton = compilation.GetTypeByMetadataName("NoodleStudios.Flecs.SingletonAttribute");
+            INamedTypeSymbol? sparse = compilation.GetTypeByMetadataName("NoodleStudios.Flecs.SparseAttribute");
 
             if (entity is null || tableView is null || structLayout is null || optional is null
                 || self is null || up is null || upAncestorsFirst is null || upDescendantsFirst is null
@@ -171,7 +196,7 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
 
             return new KnownSymbols(
                 aspect, entity, tableView, structLayout, optional, self, up,
-                upAncestorsFirst, upDescendantsFirst, singleton);
+                upAncestorsFirst, upDescendantsFirst, singleton, sparse);
         }
 
         public void AnalyzeNamedType(SymbolAnalysisContext context)
@@ -180,6 +205,8 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
 
             if (type.TypeKind is not (TypeKind.Struct or TypeKind.Class))
                 return;
+
+            ReportSparseTag(context, type);
 
             if (!type.AllInterfaces.Contains(_aspect, SymbolEqualityComparer.Default))
                 return;
@@ -344,7 +371,61 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
+            if (IsTagShaped(field.Type))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    TagAccessor, field.Locations[0], field.Name, field.Type.Name));
+                return;
+            }
+
             accessors.Add(new AccessorTerm(field, field.Type, sourcing, relationship, field.RefKind, optional));
+        }
+
+        private void ReportSparseTag(SymbolAnalysisContext context, INamedTypeSymbol type)
+        {
+            if (_sparse is null || type.TypeKind != TypeKind.Struct || !IsTagShaped(type))
+                return;
+
+            bool sparse = type.GetAttributes().Any(
+                a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, _sparse));
+            if (sparse)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    SparseTag, type.Locations[0], type.Name));
+            }
+        }
+
+        // Mirrors ComponentId<T>.IsTag: a struct with no instance fields and no
+        // opaque [StructLayout(Size > 1)] registers as a zero-storage tag. The
+        // compiler emits a metadata size of 1 for every field-less struct, so the
+        // runtime rule treats size 1 as "no opaque storage". Only an explicit size
+        // above 1 marks intentional storage, so the threshold here is > 1 to match.
+        // Auto-property backing fields are instance fields, so they are
+        // intentionally not filtered out here.
+        private bool IsTagShaped(ITypeSymbol type)
+        {
+            if (type.TypeKind != TypeKind.Struct)
+                return false;
+
+            foreach (ISymbol member in type.GetMembers())
+            {
+                if (member is IFieldSymbol { IsStatic: false, IsConst: false })
+                    return false;
+            }
+
+            foreach (AttributeData attr in type.GetAttributes())
+            {
+                if (!SymbolEqualityComparer.Default.Equals(attr.AttributeClass, _structLayout))
+                    continue;
+
+                foreach (var named in attr.NamedArguments)
+                {
+                    if (named.Key == "Size" && named.Value.Value is int size && size > 1)
+                        return false;
+                }
+            }
+
+            return true;
         }
 
         private void ReportDuplicateTerms(

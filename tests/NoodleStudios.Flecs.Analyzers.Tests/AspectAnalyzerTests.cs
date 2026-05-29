@@ -240,6 +240,58 @@ public sealed class AspectAnalyzerTests
         """);
 
     [Test]
+    public Task TagAccessor_ReportsNSFA007() => Verify.Analyzer(
+        """
+        using System.Runtime.InteropServices;
+        using NoodleStudios.Flecs;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public ref struct TagRef : IAspect
+        {
+            public ref Tag {|#0:T|};
+        }
+        """,
+        Verify.Diagnostic(AspectAnalyzer.TagAccessor)
+            .WithLocation(0)
+            .WithArguments("T", "Tag"));
+
+    [Test]
+    public Task ReadOnlyTagAccessor_ReportsNSFA007() => Verify.Analyzer(
+        """
+        using System.Runtime.InteropServices;
+        using NoodleStudios.Flecs;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public ref struct ReadOnlyTagRef : IAspect
+        {
+            public ref readonly Tag {|#0:T|};
+        }
+        """,
+        Verify.Diagnostic(AspectAnalyzer.TagAccessor)
+            .WithLocation(0)
+            .WithArguments("T", "Tag"));
+
+    [Test]
+    public Task SparseTag_ReportsNSFA008() => Verify.Analyzer(
+        """
+        using NoodleStudios.Flecs;
+
+        [Sparse]
+        public struct {|#0:SparseMarker|} { }
+        """,
+        Verify.Diagnostic(AspectAnalyzer.SparseTag)
+            .WithLocation(0)
+            .WithArguments("SparseMarker"));
+
+    [Test]
+    public Task SparseComponentWithData_ProducesNoDiagnostics() => Verify.Analyzer("""
+        using NoodleStudios.Flecs;
+
+        [Sparse]
+        public struct SparseData { public int Value; }
+        """);
+
+    [Test]
     public Task NoIAspectInCompilation_StaysInert() => Verify.InertAnalyzer("""
         public ref struct Loose
         {

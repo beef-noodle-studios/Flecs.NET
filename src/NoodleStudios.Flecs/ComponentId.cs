@@ -17,10 +17,12 @@ namespace NoodleStudios.Flecs;
 ///         cannot return a stale id for a different world.
 ///     </para>
 ///     <para>
-///         Only blittable (<c>unmanaged</c>) types are supported. A field-less
-///         struct registers as a one-byte component (C# has no zero-sized
-///         structs); use a plain entity as a tag if a true zero-sized tag is
-///         required.
+///         Only blittable (<c>unmanaged</c>) types are supported. A struct with
+///         no instance fields and no explicit <c>[StructLayout(Size)]</c>
+///         registers as a true zero-storage flecs tag (size 0), not a one-byte
+///         component. A tag is matching-only. It can be added, removed,
+///         and tested, but it carries no readable data, so it cannot be read as a
+///         component or bound as an aspect accessor field.
 ///     </para>
 /// </remarks>
 internal static unsafe class ComponentId<T> where T : unmanaged
@@ -36,6 +38,18 @@ internal static unsafe class ComponentId<T> where T : unmanaged
 
     private static readonly ComponentTraitAttribute[] Traits =
         typeof(T).GetCustomAttributes<ComponentTraitAttribute>(inherit: false).ToArray();
+
+    /// <summary>
+    ///     True when <typeparamref name="T"/> registers as a zero-storage flecs
+    ///     tag rather than a stored component. A type is a tag when it has no
+    ///     instance fields and no opaque <c>[StructLayout(Size)]</c> larger than a
+    ///     byte. C# has no zero-sized structs, so this is detected from the field
+    ///     count, not from <c>sizeof(T)</c> (a one-byte <c>byte</c>/<c>bool</c>
+    ///     field carries data and is a real component). 
+    /// </summary>
+    internal static readonly bool IsTag =
+        typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).Length == 0
+        && (typeof(T).StructLayoutAttribute?.Size ?? 0) <= 1;
 
     /// <summary>
     ///     Get the id of <typeparamref name="T"/> in <paramref name="world"/>,
@@ -88,10 +102,17 @@ internal static unsafe class ComponentId<T> where T : unmanaged
 
     private static Id Register(ecs_world_t* world, ComponentRegistry registry)
     {
+        // A tag has no type_info, so flecs cannot init a sparse set for it
+        if (IsTag && Traits.Any(t => t is SparseAttribute))
+            throw new InvalidOperationException(
+                $"Component '{typeof(T).Name}' has no instance fields, so it registers as a " +
+                "zero-storage tag, but it is marked [Sparse]. Sparse storage requires component " +
+                "data. Add a field to make it a real component, or remove [Sparse].");
+
         // The symbol (fully-qualified type name) is Flecs's stable dedup key: if
         // an entity with this symbol already exists, ecs_entity_init reuses it and
         // ecs_component_init asserts the size/alignment match, making registration
-        // idempotent per world regardless of the path it was reached through.
+        // idempotent per world regardless of the path it was reached through. 
         byte* name = Utf8.Encode(typeof(T).Name);
         byte* symbol = Utf8.Encode(typeof(T).FullName);
         try
@@ -104,8 +125,8 @@ internal static unsafe class ComponentId<T> where T : unmanaged
 
             ecs_component_desc_t componentDesc = default;
             componentDesc.entity = entity;
-            componentDesc.type.size = sizeof(T);
-            componentDesc.type.alignment = AlignOf();
+            componentDesc.type.size = IsTag ? 0 : sizeof(T);
+            componentDesc.type.alignment = IsTag ? 0 : AlignOf();
             Id id = ecs_component_init(world, &componentDesc);
 
             // Record the finalized id before applying traits to avoid endless recursion.

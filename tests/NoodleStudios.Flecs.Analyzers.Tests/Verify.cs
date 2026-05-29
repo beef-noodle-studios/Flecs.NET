@@ -59,12 +59,18 @@ internal static class Verify
                 public WithAttribute(Type component) { }
             }
 
+            [AttributeUsage(AttributeTargets.Struct, AllowMultiple = true)]
+            public abstract class ComponentTraitAttribute : Attribute { }
+
+            public sealed class SparseAttribute : ComponentTraitAttribute { }
+
             public struct Position { public float X; }
             public struct Velocity { public float X; }
             public struct Health { public int Value; }
             public struct Mass { public float Value; }
             public struct Color { public int Rgba; }
             public struct ManagedComponent { public string Name; }
+            public struct Tag { }
         }
         """;
 
