@@ -184,7 +184,16 @@ internal sealed class AspectDescriptor
         for (int i = 0; i < fields.Length; i++)
         {
             FieldInfo field = fields[i];
-            int offset = i * sizeof(long); // pointer-width slot on 64-bit target
+
+            // Each field is one pointer-width slot, placed at its declaration index.
+            // The per-row binder writes raw pointers at these offsets, so it is
+            // memory-safety-critical that the runtime lays the fields out in declaration 
+            // order. 
+            //
+            // [StructLayout(LayoutKind.Sequential)] (enforced by ValidateLayout) is what 
+            // guarantees that. If a field were ever reordered, every binding past it would 
+            // land at the wrong offset.
+            int offset = i * sizeof(long); // 64-bit-only target
             Type fieldType = field.FieldType;
 
             if (fieldType == typeof(Entity))

@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Flecs.NET.Bindings.flecs;
 
@@ -492,6 +494,71 @@ public sealed unsafe class AspectQueryTests
         Assert.That(matched, Is.EquivalentTo(new[] { (ulong)withA, (ulong)withB }));
     }
 
+    // --- Field layout / slot offsets ---
+
+    [Test]
+    public void Mixed_aspect_binds_every_field_kind_to_its_own_component()
+    {
+        // Slot offsets are computed from declaration order (slotIndex * 8) and trust
+        // LayoutKind.Sequential to keep the runtime field layout in that order. 
+        using World world = new();
+        world.Component<Position>();
+        world.Component<Velocity>();
+
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 7, Y = 8 });
+        world.Set(e, new Velocity { X = 99, Y = 100 });
+
+        ulong seenEntity = 0;
+        int seenPositionX = 0;
+        int seenVelocityX = 0;
+        bool tableSawPosition = false;
+        int rows = 0;
+
+        using (DisposableQuery<MixedLayoutAspect> query =
+               world.CreateQuery<MixedLayoutAspect>().BuildDisposable())
+            foreach (ref readonly MixedLayoutAspect m in query)
+            {
+                seenEntity = m.Entity;
+                seenPositionX = m.Position.X;
+                seenVelocityX = m.Velocity.X;
+                tableSawPosition = m.Table.HasField<Position>();
+                m.Velocity.X = 123;
+                rows++;
+            }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rows, Is.EqualTo(1), "exactly the one matching entity");
+            Assert.That(seenEntity, Is.EqualTo((ulong)e), "Entity field bound to the matched entity");
+            Assert.That(seenPositionX, Is.EqualTo(7), "Position field read its own component");
+            Assert.That(seenVelocityX, Is.EqualTo(99), "Velocity field read its own component");
+            Assert.That(tableSawPosition, Is.True, "TableView field bound to the live iterator");
+            Assert.That(world.Get<Velocity>(e).X, Is.EqualTo(123), "the ref write landed on Velocity");
+            Assert.That(world.Get<Position>(e).X, Is.EqualTo(7),
+                "Position was not clobbered by the Velocity write");
+        });
+    }
+
+    [Test]
+    public void Inline_slots_sit_at_their_declared_offsets()
+    {
+        AspectDescriptor descriptor = AspectDescriptor<MixedLayoutAspect>.Instance;
+        AspectSlot entitySlot = descriptor.Slots.Single(s => s.Kind == AspectSlotKind.Entity);
+        AspectSlot tableSlot = descriptor.Slots.Single(s => s.Kind == AspectSlotKind.TableView);
+
+        MixedLayoutAspect probe = default;
+        byte* basePtr = (byte*)Unsafe.AsPointer(ref probe);
+        long entityOffset = (byte*)Unsafe.AsPointer(ref probe.Entity) - basePtr;
+        long tableOffset = (byte*)Unsafe.AsPointer(ref probe.Table) - basePtr;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(entityOffset, Is.EqualTo(entitySlot.Offset), "Entity slot offset");
+            Assert.That(tableOffset, Is.EqualTo(tableSlot.Offset), "TableView slot offset");
+        });
+    }
+
     // --- TableView bound as an aspect field ---
 
     [Test]
@@ -749,6 +816,17 @@ public sealed unsafe class AspectQueryTests
     {
         public Entity Entity;
         public ref readonly Position Position;
+    }
+
+    // Every field kind, in declaration order, so the offset/layout tests can detect
+    // a slot landing at the wrong byte offset.
+    [StructLayout(LayoutKind.Sequential)]
+    internal ref struct MixedLayoutAspect : IAspect
+    {
+        public Entity Entity;
+        public TableView Table;
+        public ref readonly Position Position;
+        public ref Velocity Velocity;
     }
 
     [StructLayout(LayoutKind.Sequential)]
