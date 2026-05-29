@@ -395,6 +395,47 @@ public sealed class FindFieldTests
         world.DestroyQuery(query);
     }
 
+    [Test]
+    public void Unmatched_optional_is_not_reported_as_a_field()
+    {
+        using World world = new();
+        world.Component<Position>();
+        world.Component<Velocity>();
+
+        Entity e = world.CreateEntity();
+        world.Set(e, new Position { X = 1 });
+
+        Query query = world.CreateQuery().With<Position>().Optional<Velocity>().BuildUncached();
+
+        var modes = new[]
+        {
+            FieldScanMode.FirstMatch, FieldScanMode.PreferSelf,
+            FieldScanMode.SelfOnly, FieldScanMode.SharedOnly,
+        };
+
+        var finds = new List<int>();
+        bool hasField = true, hasSelf = true, hasShared = true;
+        foreach (TableView table in query)
+        {
+            foreach (FieldScanMode mode in modes)
+                finds.Add(table.FindField<Velocity>(mode));
+            hasField = table.HasField<Velocity>();
+            hasSelf = table.HasSelfField<Velocity>();
+            hasShared = table.HasSharedField<Velocity>();
+        }
+
+        world.DestroyQuery(query);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(finds, Is.All.EqualTo(-1),
+                "FindField does not report an unmatched optional in any mode");
+            Assert.That(hasField, Is.False, "HasField checks data, so it is false for an unmatched optional");
+            Assert.That(hasSelf, Is.False, "HasSelfField is false for an unmatched optional");
+            Assert.That(hasShared, Is.False, "HasSharedField is false for an unmatched optional");
+        });
+    }
+
     // --- test components ---
 
     private struct Position { public int X; }

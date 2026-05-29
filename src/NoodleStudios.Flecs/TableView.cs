@@ -292,15 +292,15 @@ public unsafe readonly ref struct TableView
     /// </summary>
     public bool HasSharedField<T>() where T : unmanaged
     {
-        int idx = Resolve<T>(out _, out bool isShared, out _);
-        return idx >= 0 && isShared;
+        int idx = Resolve<T>(out _, out bool isShared, out bool hasData);
+        return idx >= 0 && hasData && isShared;
     }
 
     /// <inheritdoc cref="HasSharedField{T}()"/>
     public bool HasSharedField(Id id)
     {
-        int idx = Resolve(id, out _, out bool isShared, out _);
-        return idx >= 0 && isShared;
+        int idx = Resolve(id, out _, out bool isShared, out bool hasData);
+        return idx >= 0 && hasData && isShared;
     }
 
     /// <summary>
@@ -311,33 +311,34 @@ public unsafe readonly ref struct TableView
     /// </summary>
     public bool HasSelfField<T>() where T : unmanaged
     {
-        int idx = Resolve<T>(out _, out bool isShared, out _);
-        return idx >= 0 && !isShared;
+        int idx = Resolve<T>(out _, out bool isShared, out bool hasData);
+        return idx >= 0 && hasData && !isShared;
     }
 
     /// <inheritdoc cref="HasSelfField{T}()"/>
     public bool HasSelfField(Id id)
     {
-        int idx = Resolve(id, out _, out bool isShared, out _);
-        return idx >= 0 && !isShared;
+        int idx = Resolve(id, out _, out bool isShared, out bool hasData);
+        return idx >= 0 && hasData && !isShared;
     }
 
     /// <summary>
     ///     Test whether this table has a sparse binding for component
     ///     <typeparamref name="T"/>, stored in a sparse set rather than in the
-    ///     table. Returns false for a field the query does not select.
+    ///     table. Returns false for a field the query does not select or an
+    ///     unmatched optional.
     /// </summary>
     public bool HasSparseField<T>() where T : unmanaged
     {
-        int idx = Resolve<T>(out bool isSparse, out _, out _);
-        return idx >= 0 && isSparse;
+        int idx = Resolve<T>(out bool isSparse, out _, out bool hasData);
+        return idx >= 0 && hasData && isSparse;
     }
 
     /// <inheritdoc cref="HasSparseField{T}()"/>
     public bool HasSparseField(Id id)
     {
-        int idx = Resolve(id, out bool isSparse, out _, out _);
-        return idx >= 0 && isSparse;
+        int idx = Resolve(id, out bool isSparse, out _, out bool hasData);
+        return idx >= 0 && hasData && isSparse;
     }
 
     // --- Positional ---
@@ -601,7 +602,8 @@ public unsafe readonly ref struct TableView
     ///     Find the field index for component <typeparamref name="T"/> on this
     ///     table, applying <paramref name="mode"/> when more than one slot
     ///     could match. Returns -1 if the component is not registered in this
-    ///     world, no slot carries its id, or no slot matches the requested
+    ///     world, no slot carries its id, the matching slot is an unmatched
+    ///     optional (not set on this table), or no slot matches the requested
     ///     shape.
     /// </summary>
     /// <remarks>
@@ -628,6 +630,10 @@ public unsafe readonly ref struct TableView
         for (int i = 0; i < fieldCount; i++)
         {
             if (_it->ids[i] != target)
+                continue;
+
+            // An unmatched optional keeps its id in the slot but is not set on this table. 
+            if (!ecs_field_is_set(_it, (byte)i))
                 continue;
 
             bool isSelf = ecs_field_is_self(_it, (byte)i);
@@ -686,13 +692,29 @@ public unsafe readonly ref struct TableView
         isShared = false;
         hasData = false;
 
-        int idx = FindField(id);
+        // Locate leniently: a field selected by the query but unmatched here still 
+        // has a valid index. The by-type accessors report that absence through hasData,
+        // distinct from "not selected by this query at all" (index -1). Public FindField,
+        // by contrast, hides an unmatched optional so its returned index always addresses 
+        // real data.
+        static unsafe int FieldIndexOf(ecs_iter_t* it, ulong target)
+        {
+            int fieldCount = it->field_count;
+            for (int i = 0; i < fieldCount; i++)
+                if (it->ids[i] == target)
+                    return i;
+            return -1;
+        }
+
+        int idx = FieldIndexOf(_it, id.Value);
         if (idx < 0)
             return -1;
 
         Shape(idx, out isSparse, out isShared, out hasData);
         return idx;
+        //
     }
+
 
     /// <summary>
     ///     Compute the storage shape (sparse/shared/has-data) of the field at
