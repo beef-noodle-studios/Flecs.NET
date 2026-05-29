@@ -173,6 +173,12 @@ internal sealed class AspectDescriptor
         Type aspectType,
         int sizeOf)
     {
+        // Slot offsets are computed at expected pointer-width (8 bytes).
+        if (IntPtr.Size != 8)
+            throw new PlatformNotSupportedException(
+                "Aspects are supported only on 64-bit targets: their field slots are laid "
+                + "out at 8-byte (pointer-width) offsets.");
+
         ValidateLayout(aspectType);
 
         FieldInfo[] fields = aspectType.GetFields(
