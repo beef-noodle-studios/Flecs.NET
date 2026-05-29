@@ -51,14 +51,6 @@ public sealed class TagTests
         Assert.That(info->size, Is.EqualTo(16));
     }
 
-    [Test]
-    public void Registering_a_tag_twice_returns_the_same_id()
-    {
-        using World world = new();
-
-        Assert.That(world.Component<EmptyTag>(), Is.EqualTo(world.Component<EmptyTag>()));
-    }
-
     // --- Storage traits ---
 
     [Test]

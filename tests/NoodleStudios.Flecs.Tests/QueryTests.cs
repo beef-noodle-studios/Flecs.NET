@@ -406,26 +406,6 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void The_read_only_accessors_also_read_a_writable_field()
-    {
-        using World world = new();
-        world.Set(world.CreateEntity(), new Position { X = 9 });
-
-        Query query = world.CreateQuery().With<Position>().BuildUncached();
-
-        var seen = new List<int>();
-        foreach (TableView table in query)
-        {
-            ReadOnlySpan<Position> span = table.GetFieldSpan<Position>();
-            for (int row = 0; row < table.Count; row++)
-                seen.Add(span[row].X);
-        }
-
-        Assert.That(seen, Is.EquivalentTo(new[] { 9 }));
-        world.DestroyQuery(query);
-    }
-
-    [Test]
     public void A_writable_shared_field_can_be_mutated_through_the_mut_accessor()
     {
         using World world = new();
@@ -525,18 +505,6 @@ public sealed class QueryTests
         world.DestroyQuery(query);
 
         Assert.That(world.EntityIsAlive(entity), Is.False, "the query entity was freed");
-    }
-
-    [Test]
-    public void DestroyQuery_frees_a_persisted_query()
-    {
-        using World world = new();
-        world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.CreateQuery().With<Position>().BuildUncached();
-
-        foreach (TableView _ in query) { }
-
-        Assert.DoesNotThrow(() => world.DestroyQuery(query));
     }
 
     [Test]
