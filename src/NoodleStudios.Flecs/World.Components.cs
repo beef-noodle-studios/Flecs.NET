@@ -42,8 +42,16 @@ public unsafe partial struct World
     ///     copied into the entity's storage.
     /// </summary>
     /// <remarks>
-    ///     The data type <typeparamref name="T"/> must match the component the id
-    ///     refers to; Flecs validates the size against the registered layout.
+    ///     <para>
+    ///         The data type <typeparamref name="T"/> must match the component the
+    ///         id refers to. Flecs validates the size against the registered layout.
+    ///     </para>
+    ///     <para>
+    ///         This id-based form is the low-level path and does not special-case
+    ///         tags. Setting against a zero-storage tag id is undefined. Prefer the
+    ///         generic <see cref="Set{T}(Entity, in T)"/>, which routes a tag to
+    ///         <see cref="Add{T}(Entity)"/>.
+    ///     </para>
     /// </remarks>
     public void Set<T>(Entity entity, Id id, in T data) where T : unmanaged
     {
@@ -141,24 +149,69 @@ public unsafe partial struct World
     ///     Set the value of component <typeparamref name="T"/> on an entity, adding
     ///     it if the entity does not already have it.
     /// </summary>
+    /// <remarks>
+    ///     If <typeparamref name="T"/> is a field-less tag it carries no data, so
+    ///     this is equivalent to <see cref="Add{T}(Entity)"/>.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set<T>(Entity entity, in T data) where T : unmanaged =>
+    public void Set<T>(Entity entity, in T data) where T : unmanaged
+    {
+        if (ComponentId<T>.IsTag)
+        {
+            Add<T>(entity);
+            return;
+        }
+
         Set(entity, new Id(ComponentId<T>.GetId(_handle)), in data);
+    }
 
     /// <inheritdoc cref="Get{T}(Entity, Id)"/>
+    /// <exception cref="InvalidOperationException">
+    ///     <typeparamref name="T"/> is a field-less tag, which has no readable data.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref readonly T Get<T>(Entity entity) where T : unmanaged =>
-        ref Get<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+    public ref readonly T Get<T>(Entity entity) where T : unmanaged
+    {
+        ThrowIfTag<T>();
+        return ref Get<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+    }
 
     /// <inheritdoc cref="GetMut{T}(Entity, Id)"/>
+    /// <exception cref="InvalidOperationException">
+    ///     <typeparamref name="T"/> is a field-less tag, which has no readable data.
+    /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T GetMut<T>(Entity entity) where T : unmanaged =>
-        ref GetMut<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+    public ref T GetMut<T>(Entity entity) where T : unmanaged
+    {
+        ThrowIfTag<T>();
+        return ref GetMut<T>(entity, new Id(ComponentId<T>.GetId(_handle)));
+    }
 
     /// <inheritdoc cref="TryGet{T}(Entity, Id, out T)"/>
+    /// <remarks>
+    ///     If <typeparamref name="T"/> is a field-less tag it has no data, so this
+    ///     reports presence via <see cref="Has{T}(Entity)"/> and returns the default
+    ///     value.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGet<T>(Entity entity, out T value) where T : unmanaged =>
-        TryGet(entity, new Id(ComponentId<T>.GetId(_handle)), out value);
+    public bool TryGet<T>(Entity entity, out T value) where T : unmanaged
+    {
+        if (ComponentId<T>.IsTag)
+        {
+            value = default;
+            return Has<T>(entity);
+        }
+
+        return TryGet(entity, new Id(ComponentId<T>.GetId(_handle)), out value);
+    }
+
+    private static void ThrowIfTag<T>() where T : unmanaged
+    {
+        if (ComponentId<T>.IsTag)
+            throw new InvalidOperationException(
+                $"Component '{typeof(T).Name}' is a field-less tag and has no readable data. " +
+                "Use Has<T> to test for it.");
+    }
 
     /// <inheritdoc cref="Modified(Entity, Id)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

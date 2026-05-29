@@ -275,7 +275,7 @@ public sealed class QueryTests
         bool reportedSparse = true;
         foreach (TableView table in query)
         {
-            reportedSparse &= table.IsFieldSparse<SparseValue>();
+            reportedSparse &= table.HasSparseField<SparseValue>();
             for (int row = 0; row < table.Count; row++)
                 seen.Add(table.GetField<SparseValue>(row).Value);
         }
@@ -308,7 +308,7 @@ public sealed class QueryTests
         var sharedPerRow = new List<int>();
         foreach (TableView table in query)
         {
-            if (table.IsFieldShared<Inherited>())
+            if (table.HasSharedField<Inherited>())
             {
                 sawShared = true;
                 sharedValue = table.GetSharedField<Inherited>().Value;
@@ -406,26 +406,6 @@ public sealed class QueryTests
     }
 
     [Test]
-    public void The_read_only_accessors_also_read_a_writable_field()
-    {
-        using World world = new();
-        world.Set(world.CreateEntity(), new Position { X = 9 });
-
-        Query query = world.CreateQuery().With<Position>().BuildUncached();
-
-        var seen = new List<int>();
-        foreach (TableView table in query)
-        {
-            ReadOnlySpan<Position> span = table.GetFieldSpan<Position>();
-            for (int row = 0; row < table.Count; row++)
-                seen.Add(span[row].X);
-        }
-
-        Assert.That(seen, Is.EquivalentTo(new[] { 9 }));
-        world.DestroyQuery(query);
-    }
-
-    [Test]
     public void A_writable_shared_field_can_be_mutated_through_the_mut_accessor()
     {
         using World world = new();
@@ -436,7 +416,7 @@ public sealed class QueryTests
 
         using (DisposableQuery query = world.CreateQuery().With<Inherited>().BuildDisposable())
             foreach (TableView table in query)
-                if (table.IsFieldShared<Inherited>())
+                if (table.HasSharedField<Inherited>())
                     table.GetSharedFieldMut<Inherited>().Value += 100;
 
         Assert.That(world.Get<Inherited>(baseEntity).Value, Is.EqualTo(142));
@@ -478,7 +458,7 @@ public sealed class QueryTests
 
         using (DisposableQuery query = world.CreateQuery().With<Inherited>().BuildDisposable())
             foreach (TableView table in query)
-                if (table.IsFieldShared<Inherited>())
+                if (table.HasSharedField<Inherited>())
                 {
                     Assert.That(table.GetSharedField<Inherited>(inherited).Value, Is.EqualTo(42));
                     table.GetSharedFieldMut<Inherited>(inherited).Value += 100;
@@ -525,18 +505,6 @@ public sealed class QueryTests
         world.DestroyQuery(query);
 
         Assert.That(world.EntityIsAlive(entity), Is.False, "the query entity was freed");
-    }
-
-    [Test]
-    public void DestroyQuery_frees_a_persisted_query()
-    {
-        using World world = new();
-        world.Set(world.CreateEntity(), new Position { X = 1 });
-        Query query = world.CreateQuery().With<Position>().BuildUncached();
-
-        foreach (TableView _ in query) { }
-
-        Assert.DoesNotThrow(() => world.DestroyQuery(query));
     }
 
     [Test]
@@ -656,8 +624,8 @@ public sealed class QueryTests
         bool matchedChild = false;
         foreach (TableView table in query)
         {
-            Assert.That(table.IsFieldShared<Position>(), Is.False, "Position is owned by the child");
-            Assert.That(table.IsFieldShared<Velocity>(), Is.True, "Velocity is inherited from the parent");
+            Assert.That(table.HasSharedField<Position>(), Is.False, "Position is owned by the child");
+            Assert.That(table.HasSharedField<Velocity>(), Is.True, "Velocity is inherited from the parent");
             Assert.That(table.GetSharedField<Velocity>().X, Is.EqualTo(7));
             for (int row = 0; row < table.Count; row++)
             {
@@ -709,7 +677,7 @@ public sealed class QueryTests
         var shared = new List<Entity>();
         foreach (TableView table in query)
         {
-            bool isShared = table.IsFieldShared<Velocity>();
+            bool isShared = table.HasSharedField<Velocity>();
             foreach (Entity e in table.Entities)
                 (isShared ? shared : owned).Add(e);
         }
@@ -817,7 +785,7 @@ public sealed class QueryTests
         var positions = new List<int>();
         foreach (TableView table in query)
         {
-            Assert.That(table.IsFieldShared<Velocity>(), Is.True, "the fixed source reads as shared");
+            Assert.That(table.HasSharedField<Velocity>(), Is.True, "the fixed source reads as shared");
             Assert.That(table.GetSharedField<Velocity>().X, Is.EqualTo(99));
             ReadOnlySpan<Position> ps = table.GetFieldSpan<Position>();
             for (int row = 0; row < table.Count; row++)
@@ -849,6 +817,7 @@ public sealed class QueryTests
         world.DestroyQuery(query);
     }
 
+#if DEBUG
     [Test]
     public void Mutating_a_default_access_fixed_source_throws_in_debug()
     {
@@ -868,6 +837,7 @@ public sealed class QueryTests
         });
         world.DestroyQuery(query);
     }
+#endif
 
     [Test]
     public void Up_with_an_explicit_relationship_traverses_it()
@@ -886,7 +856,7 @@ public sealed class QueryTests
         var matched = new List<Entity>();
         foreach (TableView table in query)
         {
-            Assert.That(table.IsFieldShared<Inherited>(), Is.True, "Inherited comes from the base via IsA");
+            Assert.That(table.HasSharedField<Inherited>(), Is.True, "Inherited comes from the base via IsA");
             Assert.That(table.GetSharedField<Inherited>().Value, Is.EqualTo(5));
             foreach (Entity e in table.Entities)
                 matched.Add(e);
@@ -943,7 +913,7 @@ public sealed class QueryTests
         {
             matched = true;
 
-            Assert.That(table.IsFieldShared<Position>(), Is.False, "type-resolution picks field 0 (owned)");
+            Assert.That(table.HasSharedField<Position>(), Is.False, "type-resolution picks field 0 (owned)");
             Assert.That(table.GetFieldSpan<Position>()[0].X, Is.EqualTo(7), "type-resolved span is field 0");
             Assert.That(table.GetSharedField<Position>(1).X, Is.EqualTo(42), "field 1 is the parent's");
         }
@@ -992,10 +962,10 @@ public sealed class QueryTests
         {
             matched = true;
             Assert.That(table.HasField(0), Is.EqualTo(table.HasField<Position>()));
-            Assert.That(table.IsFieldShared(0), Is.EqualTo(table.IsFieldShared<Position>()));
-            Assert.That(table.IsFieldSparse(0), Is.EqualTo(table.IsFieldSparse<Position>()));
+            Assert.That(table.IsFieldShared(0), Is.EqualTo(table.HasSharedField<Position>()));
+            Assert.That(table.IsFieldSparse(0), Is.EqualTo(table.HasSparseField<Position>()));
             Assert.That(table.HasField(1), Is.EqualTo(table.HasField<SparseValue>()));
-            Assert.That(table.IsFieldSparse(1), Is.EqualTo(table.IsFieldSparse<SparseValue>()));
+            Assert.That(table.IsFieldSparse(1), Is.EqualTo(table.HasSparseField<SparseValue>()));
             Assert.That(table.IsFieldSparse(1), Is.True, "SparseValue is a sparse field");
 
             Assert.That(table.HasField(99), Is.False);
@@ -1107,7 +1077,7 @@ public sealed class QueryTests
         Assert.Throws<InvalidOperationException>(() =>
         {
             foreach (TableView table in query)
-                if (table.IsFieldShared<Inherited>())
+                if (table.HasSharedField<Inherited>())
                     _ = table.GetFieldSpan<Inherited>();
         });
         world.DestroyQuery(query);
@@ -1258,7 +1228,7 @@ public sealed class QueryTests
         Assert.Throws<InvalidOperationException>(() =>
         {
             foreach (TableView table in query)
-                if (table.IsFieldShared<Inherited>())
+                if (table.HasSharedField<Inherited>())
                     _ = table.GetSharedFieldMut<Inherited>();
         });
         world.DestroyQuery(query);

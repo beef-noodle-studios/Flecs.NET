@@ -37,6 +37,18 @@ public unsafe ref struct QueryBuilder
         _built = false;
     }
 
+    /// <summary>
+    ///     The number of terms added so far. Lets a wrapping builder capture each
+    ///     seeded term's index immediately after the verb that adds it.
+    /// </summary>
+    internal readonly int TermCount => _termCount;
+
+    /// <summary>
+    ///     The world this builder targets. Exposed so a wrapping builder can read
+    ///     the world without holding its own copy.
+    /// </summary>
+    internal readonly ecs_world_t* World => _world;
+
     // --- Term adders ---
 
     /// <summary>
@@ -385,11 +397,29 @@ public unsafe ref struct QueryBuilder
                 if (entity != 0)
                     ecs_delete(_world, entity);
 
-                throw new InvalidOperationException("Failed to build query.");
+                throw new InvalidOperationException(GetBuildFailureMessage());
             }
 
             return new Query(_world, handle);
         }
+    }
+
+    // Embed flecs's last error code in the message when one is set. 
+    private static string GetBuildFailureMessage()
+    {
+        // Returns 0 and an empty message for failures that flecs routes through ecs_err
+        // without setting log_last_error_ (e.g. cascade on an uncached query)
+        // so the message degrades to a bare "Failed to build query." in those
+        // cases. ecs_strerror maps a non-zero code to a short symbolic name like
+        // INVALID_PARAMETER.
+        int errCode = ecs_log_last_error();
+        if (errCode == 0)
+            return "Failed to build query.";
+
+        string? codeName = Utf8.Decode(ecs_strerror(errCode));
+        return string.IsNullOrEmpty(codeName)
+            ? $"Failed to build query (flecs error code {errCode})."
+            : $"Failed to build query: {codeName} (flecs error code {errCode}).";
     }
 
     [Conditional("DEBUG")]

@@ -39,6 +39,12 @@ public unsafe readonly struct Query
     internal ecs_query_t* Handle => _handle;
 
     /// <summary>
+    ///     The world this query targets. Exposed so a wrapping query can read the
+    ///     world without holding its own copy.
+    /// </summary>
+    internal ecs_world_t* World => _world;
+
+    /// <summary>
     ///     The entity this query is backed by, or <see cref="Flecs.Entity.None"/> if it
     ///     has none. <see cref="QueryBuilder.BuildCached"/> backs the query with an
     ///     entity, which is what <see cref="World.DestroyQuery(Query)"/> frees. A query
