@@ -222,12 +222,18 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
 
     // A refiner mutates the most recently added term. Until the caller adds a term
     // of their own, that term is a seeded aspect accessor, and refining it could
-    // corrupt the accessor-to-field mapping. 
+    // corrupt the accessor-to-field mapping. An aspect with no accessor fields seeds
+    // nothing, so there is simply no term to refine yet.
     private readonly void GuardRefinerTarget()
     {
-        if (_inner.TermCount <= _seededTermCount)
-            throw new InvalidOperationException(
-                "A term refiner (.None/.In/.Self/.Source/...) applies to the most recently "
+        if (_inner.TermCount > _seededTermCount)
+            return;
+
+        throw new InvalidOperationException(_seededTermCount == 0
+            ? "A term refiner (.None/.In/.Self/.Source/...) applies to the most recently "
+                + "added term, but no term has been added to this builder yet. Add a term "
+                + "with With/Without/Optional first."
+            : "A term refiner (.None/.In/.Self/.Source/...) applies to the most recently "
                 + "added term, but no term has been added to this builder yet, so it would "
                 + "mutate a seeded aspect accessor. Add a term with With/Without/Optional first, "
                 + "or declare accessor refinements on the aspect via attributes.");

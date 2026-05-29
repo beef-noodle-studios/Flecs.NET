@@ -712,7 +712,6 @@ public unsafe readonly ref struct TableView
 
         Shape(idx, out isSparse, out isShared, out hasData);
         return idx;
-        //
     }
 
 
