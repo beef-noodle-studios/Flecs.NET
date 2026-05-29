@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static Flecs.NET.Bindings.flecs;
 
 namespace NoodleStudios.Flecs;
 
@@ -233,6 +234,13 @@ internal sealed class AspectDescriptor
                 $"Aspect '{aspectType.FullName}' size mismatch: Unsafe.SizeOf reports {sizeOf} bytes, " +
                 $"expected {expectedSize} ({slots.Count} slots × 8 bytes). An aspect must carry only " +
                 "pointer-width fields under [StructLayout(LayoutKind.Sequential)] on 64-bit-only.");
+        }
+
+        if (accessorCount > FLECS_TERM_COUNT_MAX)
+        {
+            throw new InvalidOperationException(
+                $"Aspect '{aspectType.FullName}' declares {accessorCount} component accessor fields, " +
+                $"but a query is limited to {FLECS_TERM_COUNT_MAX} terms. Reduce the number of accessor fields.");
         }
 
         return new AspectDescriptor
