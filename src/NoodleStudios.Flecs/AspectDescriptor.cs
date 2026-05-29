@@ -265,6 +265,17 @@ internal sealed class AspectDescriptor
                 "Bind Entity and TableView by value, not by ref.");
         }
 
+        // A managed value type (a struct that holds object references) is stored
+        // by flecs as raw bytes, so its references would not survive the round
+        // trip. Only unmanaged components are bindable.
+        if (!IsUnmanaged(elementType))
+        {
+            throw new InvalidOperationException(
+                $"Aspect '{aspectType.FullName}' field '{field.Name}' is a ref to " +
+                $"'{elementType.FullName}', which contains managed references. A " +
+                "component accessor must be a ref / ref readonly to an unmanaged value type.");
+        }
+
         AspectRefKind refKind = field.CustomAttributes
             .Any(a => a.AttributeType == typeof(IsReadOnlyAttribute))
             ? AspectRefKind.In
@@ -334,6 +345,26 @@ internal sealed class AspectDescriptor
             Relationship = relationship,
             SeedTermIndex = accessorOrdinal,
         };
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "A component whose fields are trimmed degrades to a permissive result.")]
+    private static bool IsUnmanaged(Type type)
+    {
+        if (type.IsPrimitive || type.IsEnum || type.IsPointer || type.IsFunctionPointer)
+            return true;
+
+        if (!type.IsValueType)
+            return false;
+
+        foreach (FieldInfo field in type.GetFields(
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+        {
+            if (!IsUnmanaged(field.FieldType))
+                return false;
+        }
+
+        return true;
     }
 
     private static readonly Type[] s_accessorOnlyAttributes =
