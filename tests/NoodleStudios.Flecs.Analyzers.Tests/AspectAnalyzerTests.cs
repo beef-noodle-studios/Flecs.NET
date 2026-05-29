@@ -152,6 +152,49 @@ public sealed class AspectAnalyzerTests
             .WithArguments("Dup2", "Dup1"));
 
     [Test]
+    public Task SameComponentDifferentRefKind_IsNotDuplicate() => Verify.Analyzer("""
+        using System.Runtime.InteropServices;
+        using NoodleStudios.Flecs;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public ref struct ReadAndWrite : IAspect
+        {
+            public ref Velocity Write;
+            public ref readonly Velocity Read;
+        }
+        """);
+
+    [Test]
+    public Task SameComponentDifferentOptionality_IsNotDuplicate() => Verify.Analyzer("""
+        using System.Runtime.InteropServices;
+        using NoodleStudios.Flecs;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public ref struct RequiredAndOptional : IAspect
+        {
+            public ref Velocity Required;
+            [NoodleStudios.Flecs.Optional] public ref Velocity Maybe;
+        }
+        """);
+
+    [Test]
+    public Task DuplicateReadOnlyTerm_ReportsNSFA004() => Verify.Analyzer(
+        """
+        using System.Runtime.InteropServices;
+        using NoodleStudios.Flecs;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public ref struct DupesReadOnly : IAspect
+        {
+            public ref readonly Velocity Dup1;
+            public ref readonly Velocity {|#0:Dup2|};
+        }
+        """,
+        Verify.Diagnostic(AspectAnalyzer.DuplicateTerm)
+            .WithLocation(0)
+            .WithArguments("Dup2", "Dup1"));
+
+    [Test]
     public Task SelfCombinedWithUp_ReportsNSFA005() => Verify.Analyzer("""
         using System.Runtime.InteropServices;
         using NoodleStudios.Flecs;

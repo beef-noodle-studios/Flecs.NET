@@ -292,6 +292,7 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             System.Collections.Generic.List<AccessorTerm> accessors)
         {
             bool hasSelf = false;
+            bool optional = false;
             int sourcingCount = 0;
             SourcingKind sourcing = SourcingKind.Self;
             ITypeSymbol? relationship = null;
@@ -305,6 +306,10 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
                 if (SymbolEqualityComparer.Default.Equals(attrClass, _self))
                 {
                     hasSelf = true;
+                }
+                else if (SymbolEqualityComparer.Default.Equals(attrClass, _optional))
+                {
+                    optional = true;
                 }
                 else if (SymbolEqualityComparer.Default.Equals(attrClass, _singleton))
                 {
@@ -339,7 +344,7 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
                 return;
             }
 
-            accessors.Add(new AccessorTerm(field, field.Type, sourcing, relationship));
+            accessors.Add(new AccessorTerm(field, field.Type, sourcing, relationship, field.RefKind, optional));
         }
 
         private void ReportDuplicateTerms(
@@ -395,12 +400,20 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
 
         private readonly struct AccessorTerm
         {
-            public AccessorTerm(IFieldSymbol field, ITypeSymbol component, SourcingKind sourcing, ITypeSymbol? relationship)
+            public AccessorTerm(
+                IFieldSymbol field,
+                ITypeSymbol component,
+                SourcingKind sourcing,
+                ITypeSymbol? relationship,
+                RefKind refKind,
+                bool optional)
             {
                 Field = field;
                 _component = component;
                 _sourcing = sourcing;
                 _relationship = relationship;
+                _refKind = refKind;
+                _optional = optional;
             }
 
             public IFieldSymbol Field { get; }
@@ -408,9 +421,13 @@ public sealed class AspectAnalyzer : DiagnosticAnalyzer
             private readonly ITypeSymbol _component;
             private readonly SourcingKind _sourcing;
             private readonly ITypeSymbol? _relationship;
+            private readonly RefKind _refKind;
+            private readonly bool _optional;
 
             public bool SameTermAs(AccessorTerm other) =>
                 _sourcing == other._sourcing
+                && _refKind == other._refKind
+                && _optional == other._optional
                 && SymbolEqualityComparer.Default.Equals(_component, other._component)
                 && SymbolEqualityComparer.Default.Equals(_relationship, other._relationship);
         }
