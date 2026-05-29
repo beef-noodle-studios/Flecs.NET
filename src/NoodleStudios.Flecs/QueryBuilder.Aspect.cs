@@ -14,12 +14,14 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     private QueryBuilder _inner;
     private readonly int[] _slotToTermIndex;
     private readonly AspectDescriptor _descriptor;
+    private readonly int _seededTermCount;
 
     internal QueryBuilder(QueryBuilder inner, int[] slotToTermIndex, AspectDescriptor descriptor)
     {
         _inner = inner;
         _slotToTermIndex = slotToTermIndex;
         _descriptor = descriptor;
+        _seededTermCount = inner.TermCount;
     }
 
     /// <inheritdoc cref="QueryBuilder.With{T}()"/>
@@ -82,6 +84,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> In()
     {
+        GuardRefinerTarget();
         _inner.In();
         return ref this;
     }
@@ -90,6 +93,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Out()
     {
+        GuardRefinerTarget();
         _inner.Out();
         return ref this;
     }
@@ -98,6 +102,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> InOut()
     {
+        GuardRefinerTarget();
         _inner.InOut();
         return ref this;
     }
@@ -106,6 +111,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> None()
     {
+        GuardRefinerTarget();
         _inner.None();
         return ref this;
     }
@@ -116,6 +122,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Or()
     {
+        GuardRefinerTarget();
         _inner.Or();
         return ref this;
     }
@@ -124,6 +131,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Self()
     {
+        GuardRefinerTarget();
         _inner.Self();
         return ref this;
     }
@@ -132,6 +140,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Up()
     {
+        GuardRefinerTarget();
         _inner.Up();
         return ref this;
     }
@@ -140,6 +149,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Up(Id relationship)
     {
+        GuardRefinerTarget();
         _inner.Up(relationship);
         return ref this;
     }
@@ -148,6 +158,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> UpAncestorsFirst()
     {
+        GuardRefinerTarget();
         _inner.UpAncestorsFirst();
         return ref this;
     }
@@ -156,6 +167,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> UpAncestorsFirst(Id relationship)
     {
+        GuardRefinerTarget();
         _inner.UpAncestorsFirst(relationship);
         return ref this;
     }
@@ -164,6 +176,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> UpDescendantsFirst()
     {
+        GuardRefinerTarget();
         _inner.UpDescendantsFirst();
         return ref this;
     }
@@ -172,6 +185,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> UpDescendantsFirst(Id relationship)
     {
+        GuardRefinerTarget();
         _inner.UpDescendantsFirst(relationship);
         return ref this;
     }
@@ -180,6 +194,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Source(Entity source)
     {
+        GuardRefinerTarget();
         _inner.Source(source);
         return ref this;
     }
@@ -188,6 +203,7 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     [UnscopedRef]
     public ref QueryBuilder<TAspect> Source(Id source)
     {
+        GuardRefinerTarget();
         _inner.Source(source);
         return ref this;
     }
@@ -203,4 +219,17 @@ public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, 
     /// <inheritdoc cref="QueryBuilder.BuildDisposable"/>
     public DisposableQuery<TAspect> BuildDisposable() =>
         new(new Query<TAspect>(_inner.BuildUncached(), _slotToTermIndex, _descriptor));
+
+    // A refiner mutates the most recently added term. Until the caller adds a term
+    // of their own, that term is a seeded aspect accessor, and refining it could
+    // corrupt the accessor-to-field mapping. 
+    private readonly void GuardRefinerTarget()
+    {
+        if (_inner.TermCount <= _seededTermCount)
+            throw new InvalidOperationException(
+                "A term refiner (.None/.In/.Self/.Source/...) applies to the most recently "
+                + "added term, but no term has been added to this builder yet, so it would "
+                + "mutate a seeded aspect accessor. Add a term with With/Without/Optional first, "
+                + "or declare accessor refinements on the aspect via attributes.");
+    }
 }

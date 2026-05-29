@@ -230,6 +230,55 @@ public sealed unsafe class AspectBuilderTests
         Assert.That(ex.Message, Does.Contain("Failed to build query"));
     }
 
+    [Test]
+    public void Refiner_before_any_user_term_throws_rather_than_mutating_a_seeded_accessor()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position());
+        world.Set(world.CreateEntity(), new Velocity());
+        world.Set(world.CreateEntity(), new Mass());
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
+            world.CreateQuery<ThreeFieldAspect>().None())!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ex.Message, Does.Contain("refiner"));
+            Assert.That(ex.Message, Does.Contain("Add a term"));
+        });
+    }
+
+    [Test]
+    public void Refiner_after_a_user_term_refines_that_term_and_leaves_accessors_intact()
+    {
+        using World world = new();
+        world.Set(world.CreateEntity(), new Position());
+        world.Set(world.CreateEntity(), new Velocity());
+        world.Set(world.CreateEntity(), new Mass());
+        world.Set(world.CreateEntity(), new MarkerA());
+
+        Query<ThreeFieldAspect> query =
+            world.CreateQuery<ThreeFieldAspect>().With<MarkerA>().None().BuildUncached();
+        try
+        {
+            int[] map = query.SlotToTermIndex.ToArray();
+            ecs_term_t* terms = (ecs_term_t*)(&query.Untyped.Handle->terms);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(query.Untyped.Handle->term_count, Is.EqualTo(4),
+                    "three accessor terms + the user's MarkerA term");
+                Assert.That(terms[map[0]].field_index, Is.EqualTo(0));
+                Assert.That(terms[map[1]].field_index, Is.EqualTo(1));
+                Assert.That(terms[map[2]].field_index, Is.EqualTo(2));
+            });
+        }
+        finally
+        {
+            world.DestroyQuery(query.Untyped);
+        }
+    }
+
     // --- Test components and aspect shapes ---
 
     internal struct Position { public int X; public int Y; }
