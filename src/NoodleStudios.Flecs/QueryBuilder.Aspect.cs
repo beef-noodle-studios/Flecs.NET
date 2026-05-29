@@ -9,7 +9,7 @@ namespace NoodleStudios.Flecs;
 ///     compose with the seeded ones. A builder is single-use, so create a new
 ///     one for each query.
 /// </summary>
-public unsafe ref struct QueryBuilder<TAspect> where TAspect : IAspect, allows ref struct
+public unsafe ref struct QueryBuilder<TAspect> where TAspect : struct, IAspect, allows ref struct
 {
     private QueryBuilder _inner;
     private readonly int[] _slotToTermIndex;

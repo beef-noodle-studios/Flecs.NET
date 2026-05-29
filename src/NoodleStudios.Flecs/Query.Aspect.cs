@@ -11,7 +11,7 @@ namespace NoodleStudios.Flecs;
 ///     values. Use the untyped <see cref="Flecs.Query"/> accessible through
 ///     <see cref="Untyped"/> for lifetime management.
 /// </summary>
-public unsafe readonly struct Query<TAspect> where TAspect : IAspect, allows ref struct
+public unsafe readonly struct Query<TAspect> where TAspect : struct, IAspect, allows ref struct
 {
     private readonly Query _inner;
     private readonly int[] _slotToTermIndex;
@@ -319,7 +319,7 @@ public unsafe readonly struct Query<TAspect> where TAspect : IAspect, allows ref
 ///     <see cref="Query{TAspect}"/>. Free it with <c>using</c>. Mirrors
 ///     <see cref="DisposableQuery"/> for typed queries.
 /// </summary>
-public unsafe ref struct DisposableQuery<TAspect> where TAspect : IAspect, allows ref struct
+public unsafe ref struct DisposableQuery<TAspect> where TAspect : struct, IAspect, allows ref struct
 {
     private readonly Query<TAspect> _query;
 

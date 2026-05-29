@@ -24,7 +24,7 @@ public unsafe readonly partial struct World
         [DynamicallyAccessedMembers(
             DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)]
         TAspect>()
-        where TAspect : IAspect, allows ref struct
+        where TAspect : struct, IAspect, allows ref struct
     {
         AspectDescriptor descriptor = AspectDescriptor<TAspect>.Instance;
         ComponentRegistry registry = BindingContext.GetRegistry(_handle);

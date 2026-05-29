@@ -17,7 +17,7 @@ internal static class AspectDescriptor<
     [DynamicallyAccessedMembers(
         DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)]
     TAspect>
-    where TAspect : IAspect, allows ref struct
+    where TAspect : struct, IAspect, allows ref struct
 {
     /// <summary>
     ///     The shared descriptor for <typeparamref name="TAspect"/>, built once
