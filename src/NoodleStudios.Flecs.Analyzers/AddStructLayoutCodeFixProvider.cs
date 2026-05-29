@@ -33,6 +33,11 @@ public sealed class AddStructLayoutCodeFixProvider : CodeFixProvider
         if (root is null)
             return;
 
+        SemanticModel? model = await context.Document
+            .GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false);
+        if (model is null)
+            return;
+
         Diagnostic diagnostic = context.Diagnostics[0];
         TypeDeclarationSyntax? typeDecl = root
             .FindNode(diagnostic.Location.SourceSpan)
@@ -43,14 +48,15 @@ public sealed class AddStructLayoutCodeFixProvider : CodeFixProvider
         context.RegisterCodeFix(
             CodeAction.Create(
                 Title,
-                ct => Task.FromResult(ApplyFix(context.Document, root, typeDecl)),
+                ct => Task.FromResult(ApplyFix(context.Document, root, model, typeDecl)),
                 equivalenceKey: AspectAnalyzer.MissingSequentialLayout.Id),
             diagnostic);
     }
 
-    private static Document ApplyFix(Document document, SyntaxNode root, TypeDeclarationSyntax typeDecl)
+    private static Document ApplyFix(
+        Document document, SyntaxNode root, SemanticModel model, TypeDeclarationSyntax typeDecl)
     {
-        AttributeSyntax? existing = FindStructLayout(typeDecl);
+        AttributeSyntax? existing = FindStructLayout(typeDecl, model);
 
         TypeDeclarationSyntax newTypeDecl = existing is not null
             ? typeDecl.ReplaceNode(existing, ToSequential(existing))
@@ -64,16 +70,20 @@ public sealed class AddStructLayoutCodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(newRoot);
     }
 
-    private static AttributeSyntax? FindStructLayout(TypeDeclarationSyntax typeDecl) =>
-        typeDecl.AttributeLists
+    private static AttributeSyntax? FindStructLayout(TypeDeclarationSyntax typeDecl, SemanticModel model)
+    {
+        INamedTypeSymbol? structLayout = model.Compilation.GetTypeByMetadataName(
+            "System.Runtime.InteropServices.StructLayoutAttribute");
+        if (structLayout is null)
+            return null;
+
+        // Resolve each attribute to its symbol rather than matching on the written name
+        return typeDecl.AttributeLists
             .SelectMany(list => list.Attributes)
             .FirstOrDefault(attr =>
-            {
-                string name = attr.Name.ToString();
-                return name is "StructLayout" or "StructLayoutAttribute"
-                    || name.EndsWith(".StructLayout", System.StringComparison.Ordinal)
-                    || name.EndsWith(".StructLayoutAttribute", System.StringComparison.Ordinal);
-            });
+                model.GetSymbolInfo(attr).Symbol is IMethodSymbol ctor
+                && SymbolEqualityComparer.Default.Equals(ctor.ContainingType, structLayout));
+    }
 
     private static AttributeSyntax ToSequential(AttributeSyntax existing)
     {

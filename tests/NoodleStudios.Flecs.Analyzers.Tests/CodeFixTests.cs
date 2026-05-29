@@ -26,6 +26,31 @@ public sealed class CodeFixTests
         """);
 
     [Test]
+    public Task RewritesAliasedStructLayout_InPlace() => Verify.CodeFix(
+        """
+        using System.Runtime.InteropServices;
+        using SL = System.Runtime.InteropServices.StructLayoutAttribute;
+        using NoodleStudios.Flecs;
+
+        [SL(LayoutKind.Auto)]
+        public ref struct {|NSFA001:Fixme|} : IAspect
+        {
+            public Entity Entity;
+        }
+        """,
+        """
+        using System.Runtime.InteropServices;
+        using SL = System.Runtime.InteropServices.StructLayoutAttribute;
+        using NoodleStudios.Flecs;
+
+        [SL(LayoutKind.Sequential)]
+        public ref struct Fixme : IAspect
+        {
+            public Entity Entity;
+        }
+        """);
+
+    [Test]
     public Task RewritesNonSequentialLayout_PreservingImport() => Verify.CodeFix(
         """
         using System.Runtime.InteropServices;
